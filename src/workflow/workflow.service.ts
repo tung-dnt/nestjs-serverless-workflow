@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import { TransitionEvent, WorkflowDefinition } from './definition';
-import { EntityService } from './entity.service';
 import { KafkaClient } from '../event-bus/kafka/client';
 import { EventMessage } from '../event-bus/kafka/event.handler';
+import { EntityService } from './entity.service';
+import { TransitionEvent } from './types/transition-event';
+import { WorkflowDefinition } from './types/workflow-definition';
 
 /**
  * Defines a workflow interface that can emit events and update the state of an entity.

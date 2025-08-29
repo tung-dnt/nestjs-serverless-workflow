@@ -1,6 +1,6 @@
 {
-  "name": "@jescrich/nestjs-workflow",
-  "version": "1.0.6",
+  "name": "nestjs-serverless-workflow",
+  "version": "0.0.1",
   "description": "Workflow and State Machines for NestJS",
   "license": "MIT",
   "author": "Thomas Do (tung-dnt)",

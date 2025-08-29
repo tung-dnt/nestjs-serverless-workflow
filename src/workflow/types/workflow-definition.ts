@@ -1,28 +1,7 @@
 import { Provider, Type } from '@nestjs/common';
-import { EntityService } from './entity.service';
-
-/**
- * Defines the structure of a transition event in a workflow definition. This includes the following properties:
- * - `event`: The event that triggers the transition.
- * - `from`: The state that the workflow is transitioning from.
- * - `to`: The state that the workflow is transitioning to.
- * - `actions`: An optional array of actions to be performed during the transition.
- * - `conditions`: An optional array of conditions to be checked during the transition.
- * Actions and conditions can be defined as functions that take an entity and an optional payload as arguments or
- * as workflow actions classes that are decorated with the `@OnEvent` and/or `@OnStatusChanged` decorator.
- */
-export interface TransitionEvent<T, P, Event, States> {
-  event: Event | Event[];
-  from: States | States[];
-  to: States;
-  actions?: ((entity: T, payload?: P | T | object | string) => Promise<T>)[]; // | Type<any>[];
-  conditions?: ((entity: T, payload?: P | T | object | string) => boolean)[]; // | Type<any>[];
-}
-
-export interface KafkaEvent<Event> {
-  topic: string;
-  event: Event;
-}
+import { KafkaEvent } from '@this/event-bus/kafka/types/kafka-event.interface';
+import { EntityService } from '../entity.service';
+import { TransitionEvent } from './transition-event';
 
 /**
  * Defines the structure of a workflow definition, which includes the following properties:
