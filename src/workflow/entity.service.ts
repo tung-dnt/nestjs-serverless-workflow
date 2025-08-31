@@ -1,12 +1,9 @@
-import { Injectable } from '@nestjs/common';
-
-@Injectable()
-export abstract class EntityService<T, State> {
+export interface EntityService<T, State> {
   /**
    * Creates a new instance of the entity
    * @returns A new entity instance
    */
-  abstract new(): Promise<T>;
+  new (): Promise<T>;
 
   /**
    * Updates the status of an entity
@@ -14,26 +11,26 @@ export abstract class EntityService<T, State> {
    * @param status The new status
    * @returns The updated entity
    */
-  abstract update(entity: T, status: State): Promise<T>;
+  update(entity: T, status: State): Promise<T>;
 
   /**
    * Loads an entity by its URN
    * @param urn The unique resource name of the entity
    * @returns The loaded entity
    */
-  abstract load(urn: string): Promise<T | null>;
+  load(urn: string): Promise<T | null>;
 
   /**
    * Gets the current status of an entity
    * @param entity The entity
    * @returns The current status
    */
-  abstract status(entity: T): State;
+  status(entity: T): State;
 
   /**
    * Gets the URN of an entity
    * @param entity The entity
    * @returns The entity's URN
    */
-  abstract urn(entity: T): string;
+  urn(entity: T): string;
 }

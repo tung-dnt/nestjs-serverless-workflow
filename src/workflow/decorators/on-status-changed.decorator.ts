@@ -5,7 +5,7 @@
  * Since this handler acts after the event action and after the entity status is updated, it can be used to perform additional actions or validations based on the status change.
  * If if throws an error, the transition will fail and the entity will be updated to the failed state.
  */
-const OnStatusChanged = <S>(params: { from: S; to: S, failOnError?: boolean }) => {
+export const OnStatusChanged = <S>(params: { from: S; to: S; failOnError?: boolean }) => {
   const { from, to } = params;
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     Reflect.defineMetadata('onStatusChanged', true, target, propertyKey);
@@ -15,4 +15,3 @@ const OnStatusChanged = <S>(params: { from: S; to: S, failOnError?: boolean }) =
     return descriptor;
   };
 };
-export { OnStatusChanged };

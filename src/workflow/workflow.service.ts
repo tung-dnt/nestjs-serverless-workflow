@@ -1,36 +1,8 @@
 import { BadRequestException, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import { KafkaClient } from '../event-bus/kafka/client';
-import { EventMessage } from '../event-bus/kafka/event.handler';
 import { EntityService } from './entity.service';
-import { TransitionEvent } from './types/transition-event';
-import { WorkflowDefinition } from './types/workflow-definition';
-
-/**
- * Defines a workflow interface that can emit events and update the state of an entity.
- *
- * @template T - The type of the entity being managed.
- * @template E - The type of events that can trigger transitions.
- */
-export interface Workflow<T, E> {
-  /**
-   * Emits an event to trigger a state transition for the given entity.
-   *
-   * @param params - An object containing the event, the unique identifier (URN) of the entity, and an optional payload.
-   * @returns A promise that resolves to the updated entity.
-   */
-  emit(params: { event: E; urn: string; payload?: object }): Promise<T>;
-}
-
-/**
- * Defines a workflow interface that can emit events and update the state of an entity.
- *
- * @template T - The type of the entity being managed.
- * @template E - The type of events that can trigger transitions.
- */
-export interface Workflow<T, E> {
-  emit(params: { event: E; urn: string; payload?: object }): Promise<T>;
-}
+import { TransitionEvent } from './types/transition-event.interface';
+import { WorkflowDefinition } from './types/workflow-definition.interface';
 
 @Injectable()
 /**
@@ -41,9 +13,7 @@ export interface Workflow<T, E> {
  * @typeParam E - The type of events that can trigger transitions
  * @typeParam S - The type of states the entity can be in
  */
-export class WorkflowService<T, P, E, S> implements Workflow<T, E>, OnModuleInit {
-  private kafkaClient?: KafkaClient;
-
+export class WorkflowService<T, P, E, S> implements OnModuleInit {
   private readonly logger = new Logger(WorkflowService.name);
   private readonly actionsOnStatusChanged: Map<
     String,
@@ -211,22 +181,6 @@ export class WorkflowService<T, P, E, S> implements Workflow<T, E>, OnModuleInit
             }
           }
         }
-
-        ({
-          failed,
-          Element: entity,
-          message,
-        } = await this.executeInlineActions(
-          transition,
-          entity,
-          currentEvent,
-          message,
-          payload,
-          entityCurrentState,
-          nextStatus,
-          urn,
-        ));
-
         // If the transition failed, set the status to failed and break the loop
 
         if (failed) {
@@ -288,37 +242,6 @@ export class WorkflowService<T, P, E, S> implements Workflow<T, E>, OnModuleInit
       const message = `An error occurred while transitioning the Element ${error?.message ?? ''}`;
       throw new Error(`Element: ${urn} Event: ${event} - ${message}.`);
     }
-  }
-
-  private async executeInlineActions(
-    transition: TransitionEvent<T, P, E, S>,
-    entity: T,
-    currentEvent: E,
-    message: string,
-    payload: string | T | P | object | undefined,
-    currentStatus: S,
-    nextStatus: S,
-    urn: string,
-  ) {
-    if (!transition.actions) {
-      return { failed: false, Element: entity, message };
-    }
-    const actions = await transition.actions;
-    let failed = false;
-
-    try {
-      for (const action of actions) {
-        entity = await action(entity, payload);
-        if (!entity) {
-          throw new Error(`Transition from ${currentStatus} to ${nextStatus} has failed. Error: Result is null.`);
-        }
-      }
-    } catch (error) {
-      this.logger.error(`Entity workflow has failed. Error: ${error?.message}`, urn);
-      message = error?.message;
-      failed = true;
-    }
-    return { failed, Element: entity, message };
   }
 
   private nextEvent(entity: T): E | null {
@@ -453,38 +376,6 @@ export class WorkflowService<T, P, E, S> implements Workflow<T, E>, OnModuleInit
     } catch (e) {
       this.logger.error('Error trying to initialize workflow actions', e);
       throw e;
-    }
-  }
-
-  private configureConditions() {}
-
-  private async initializeKakfaConsumers() {
-    if (!this.definition.kafka) {
-      this.logger.log('No Kafka events defined.');
-      return;
-    }
-
-    if (!this.kafkaClient) {
-      this.logger.log('Kafka client not available, skipping Kafka consumer initialization.');
-      return;
-    }
-
-    for (const kafkaDef of this.definition.kafka?.events) {
-      this.kafkaClient.consume(
-        kafkaDef.topic,
-        this.definition.name + 'consumer',
-        async (params: { key: string; event: T | P; payload?: EventMessage }) => {
-          const { key, event } = params;
-          this.logger.log(`Kafka Event received on topic ${kafkaDef.topic} with key ${key}`, key);
-          try {
-            this.emit({ event: kafkaDef.event, urn: key, payload: event });
-            this.logger.log(`Kafka Event emmited successfuly`, key);
-          } catch (e) {
-            this.logger.error(`Kafka Event fail to process`, key);
-          }
-        },
-      );
-      this.logger.log('Initializing topic consumption');
     }
   }
 

@@ -788,3 +788,43 @@ The interactive demos feature:
 ## Advanced Usage
 For more advanced usage, including custom actions, conditions, and event handling, please check the documentation and explore the examples repository.
 ```
+
+State Machine flow chart
+```mermaid
+flowchart TD
+  Start["emit(event, urn, payload)"]
+  LoadEntity["loadEntity(urn)"]
+  Found{"entity found?"}
+  GetStatus["getEntityStatus(entity)"]
+  FindTransition["find matching TransitionEvent (event + state)"]
+  NoTransition{"transitionEvent found?"}
+  Fallback["call definition.fallback(...) if configured and return"]
+  ReturnEntity["return entity"]
+  DetermineNext["select concrete transition by evaluating conditions"]
+  EventActions["run actionsOnEvent(event) sequentially"]
+  InlineActions["run transition.actions (inline) sequentially"]
+  FailedCheck{"failed during actions?"}
+  UpdateStatus["updateEntityStatus(entity, nextStatus)"]
+  StatusActions["run actionsOnStatusChanged(from-to)"]
+  PostFailed{"failed after status-change actions?"}
+  IdleCheck{"isInIdleStatus(nextStatus)?"}
+  FinalCheck{"isInFailedStatus or final?"}
+  NextEvent["nextEvent(entity) -> event | null"]
+  LoopBack["repeat loop with new currentEvent/currentState"]
+  End["return updated entity"]
+
+  Start --> LoadEntity --> Found
+  Found -- no --> ReturnEntity
+  Found -- yes --> GetStatus --> FindTransition --> NoTransition
+  NoTransition -- no & fallback --> Fallback --> ReturnEntity
+  NoTransition -- no & no fallback --> ReturnEntity
+  NoTransition -- yes --> DetermineNext --> EventActions --> InlineActions --> FailedCheck
+  FailedCheck -- true --> UpdateStatus --> End
+  FailedCheck -- false --> UpdateStatus --> StatusActions --> PostFailed
+  PostFailed -- true --> UpdateStatus --> End
+  PostFailed -- false --> IdleCheck
+  IdleCheck -- true --> End
+  IdleCheck -- false --> FinalCheck
+  FinalCheck -- true --> End
+  FinalCheck -- false --> NextEvent --> LoopBack
+```
