@@ -1,4 +1,4 @@
-import { Post } from '@nestjs/common';
+import {OnEvent} from '@nestjs/event-emitter'
 import { WorkflowController } from '@workflow/types/workflow-controller.interface';
 
 export const Trigger =
@@ -25,7 +25,7 @@ export const Trigger =
       await target.entityService.update(entity, result.state);
       await target.eventEmitter.emit('OrderCreated', { orderId: result.id });
     };
-    return Post(event)(target, event, descriptor);
+    return OnEvent(event)(target, propertyKey, descriptor);
   };
 
 // Payment::: 1. Created -> 2. Pending -> 3. Completed

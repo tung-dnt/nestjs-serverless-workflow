@@ -7,6 +7,9 @@ import { TransitionEvent } from './transition-event.interface';
  * - `FailedState`: The state that represents a failed state in the workflow.
  * - `Transitions`: An array of transition events that define the allowed transitions between states.
  * - `Fallback`: An optional function that can be used as a fallback when a transition event is not defined.
+ * - `Actions`: An optional array of action classes for workflow actions.
+ * - `Conditions`: An optional array of condition functions.
+ * - `Entity`: An optional entity service or configuration for loading/updating entities.
  */
 export interface WorkflowDefinition<T, P, Event, State> {
   name: string;
@@ -17,4 +20,7 @@ export interface WorkflowDefinition<T, P, Event, State> {
   };
   transitions: TransitionEvent<T, P, Event, State>[];
   fallback?: (entity: T, event: Event, payload?: P | T | object | string) => Promise<T>;
+  actions?: any[];
+  conditions?: ((entity: T, payload?: P | T | object | string) => boolean)[];
+  entity?: any;
 }

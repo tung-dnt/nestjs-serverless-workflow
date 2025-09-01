@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+
 import { EntityService } from './entity.service';
 import { TransitionEvent } from './types/transition-event.interface';
 import { WorkflowDefinition } from './types/workflow-definition.interface';
@@ -42,27 +43,7 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
   }
 
   async onModuleInit() {
-    // Resolve entity service if not already injected
-    if (!this.entityService && typeof this.definition.entity === 'function' && this.moduleRef) {
-      try {
-        const entityServiceInstance = this.moduleRef.get(this.definition.entity, { strict: false });
-        if (entityServiceInstance) {
-          this.entityService = entityServiceInstance;
-          this.logger.log(`Resolved entity service: ${this.definition.entity.name}`, this.definition.name);
-        }
-      } catch (error) {
-        this.logger.warn(
-          `Could not resolve entity service during initialization: ${error.message}`,
-          this.definition.name,
-        );
-      }
-    }
-
     this.configureActions();
-
-    this.configureConditions();
-
-    await this.initializeKakfaConsumers();
   }
 
   /**
@@ -74,174 +55,233 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
    * @param params.payload - Optional payload associated with the transition
    * @returns A promise that resolves to the updated entity after the transition
    */
-  public async emit(params: { event: E; urn: string; payload?: T | P | object | string }): Promise<T> {
+  public async emit(params: { event: E; urn: string; payload?: T | P | object | string }): Promise<void> {
     const { event, urn, payload } = params;
-    const result = await this.transition({ event, urn, payload });
-    return result;
+    await this.transition({ event, urn, payload });
   }
 
-  private async transition(params: { event: E; urn: string; payload?: T | P | object | string }): Promise<T> {
+  private async transition(params: { event: E; urn: string; payload?: T | P | object | string }): Promise<void> {
     const { event, urn, payload } = params;
-
-    let currentEvent: E | null = event;
+    this.logger.log(`Event: ${event}`, urn);
 
     try {
-      this.logger.log(`Event: ${event}`, urn);
-
-      let entity: T | null = await this.loadEntity(urn);
-
-      if (!entity || entity === null) {
-        this.logger.error(`Element not found`, urn);
-        throw new BadRequestException(`Entity not found`, urn);
-      }
-
-      let entityCurrentState = this.getEntityStatus(entity);
-
-      if (this.definition.states.finals.includes(entityCurrentState)) {
-        this.logger.warn(`Entity: ${urn} is in a final status. Accepting transitions due to a retry mechanism.`, urn);
-      }
-
-      let transitionEvent: TransitionEvent<T, P, E, S> | undefined;
-      let transition;
-      let message = '';
-
-      do {
-        transitionEvent = this.definition.transitions.find((transition) => {
-          const events = Array.isArray(transition.event) ? transition.event : [transition.event];
-          const states = Array.isArray(transition.from) ? transition.from : [transition.from];
-          return currentEvent && events.includes(currentEvent) && states.includes(entityCurrentState);
-        });
-
-        if (!transitionEvent) {
-          throw new Error(
-            `Unable to find transition event for Event: ${currentEvent} and Status: ${entityCurrentState}`,
-          );
-        }
-
-        const nextStatus = transitionEvent.to;
-
-        const possibleTransitions = this.definition.transitions.filter(
-          (t) =>
-            (Array.isArray(t.from) ? t.from.includes(entityCurrentState) : t.from === entityCurrentState) &&
-            t.to === nextStatus,
-        );
-
-        this.logger.log(`Possible transitions for ${urn}: ${JSON.stringify(possibleTransitions)}`, urn);
-
-        for (const t of possibleTransitions) {
-          this.logger.log(`Checking conditional transition from ${entityCurrentState} to ${nextStatus}`, urn);
-
-          if (
-            !t.conditions ||
-            (t.conditions &&
-              t.conditions.every((condition) => {
-                const result = condition(entity!, payload);
-                this.logger.log(`Condition ${condition.name || 'anonymous'} result: ${result}`, urn);
-                return result;
-              }))
-          ) {
-            transition = t;
-            break;
-          } else {
-            this.logger.log(`Condition not met for transition from ${entityCurrentState} to ${nextStatus}`, urn);
-          }
-        }
-
-        if (!transition) {
-          this.logger.warn(
-            `There's no valid transition from ${entityCurrentState} to ${nextStatus} or the condition is not met.`,
-          );
-
-          if (this.definition.fallback) {
-            this.logger.log(`Falling back to the default transition`, urn);
-            entity = await this.definition.fallback(entity, currentEvent, payload);
-          }
-
-          return entity;
-        }
-
-        this.logger.log(`Executing transition from ${entityCurrentState} to ${nextStatus}`, urn);
-
-        let failed;
-
-        if (this.actionsOnEvent.has(currentEvent)) {
-          const actions = this.actionsOnEvent.get(currentEvent);
-          if (actions && actions.length > 0) {
-            this.logger.log(`Executing actions for event ${transition.event}`, urn);
-
-            for (const action of actions) {
-              this.logger.log(`Executing action ${action.name}`, urn);
-              try {
-                entity = await action({ entity, payload });
-              } catch (error) {
-                this.logger.error(`Action ${action.name} failed: ${error.message}`, urn);
-                failed = true;
-                break;
-              }
-            }
-          }
-        }
-        // If the transition failed, set the status to failed and break the loop
-
-        if (failed) {
-          this.logger.log(`Transition failed. Setting status to failed. ${message}`, urn);
-          await this.updateEntityStatus(entity, this.definition.states.failed);
-          this.logger.log(`Element transitioned to failed status. ${message}`, urn);
-          break;
-        }
-
-        entity = await this.updateEntityStatus(entity, nextStatus);
-
-        this.logger.log(`Element transitioned from ${entityCurrentState} to ${nextStatus} ${message}`, urn);
-
-        // once entity has change it status and
-
-        const statusChangeKey = `${entityCurrentState}-${nextStatus}`;
-        if (this.actionsOnStatusChanged.has(statusChangeKey)) {
-          const actions = this.actionsOnStatusChanged.get(statusChangeKey);
-          if (actions && actions.length > 0) {
-            this.logger.log(`Executing actions for status change from ${entityCurrentState} to ${nextStatus}`, urn);
-            for (const action of actions) {
-              this.logger.log(`Executing action ${action.action.name}`, urn);
-              try {
-                entity = await action.action({ entity, payload });
-              } catch (error) {
-                this.logger.error(`Action ${action.action.name} failed: ${error.message}`, urn);
-                failed = action.failOnError;
-                break;
-              }
-            }
-          }
-        }
-
-        if (failed) {
-          this.logger.log(`Transition has succeded by a post on status change event has failed. ${message}`, urn);
-          await this.updateEntityStatus(entity, this.definition.states.failed);
-          this.logger.log(`Element transitioned to failed status. ${message}`, urn);
-          break;
-        }
-
-        if (this.isInIdleStatus(entity)) {
-          this.logger.log(`Element: ${urn} is idle in ${nextStatus} status. Waiting for external event...`);
-          break; // Break the loop if the status is idle and waiting for an external event
-        }
-
-        if (this.isInFailedStatus(entity)) {
-          this.logger.log(`Element: ${urn} is in a final state. Workflow completed.`);
-          break;
-        }
-
-        currentEvent = this.nextEvent(entity);
-        entityCurrentState = this.getEntityStatus(entity);
-
-        this.logger.log(`Next event: ${currentEvent ?? 'none'} Next status: ${entityCurrentState}`, urn);
-      } while (currentEvent);
-
-      return entity;
+      // Load entity and validate
+      const entity = await this.loadAndValidateEntity(urn);
+      await this.processWorkflow(entity, event, urn, payload);
     } catch (error) {
-      const message = `An error occurred while transitioning the Element ${error?.message ?? ''}`;
-      throw new Error(`Element: ${urn} Event: ${event} - ${message}.`);
+      throw new Error(`Element: ${urn} Event: ${event} - ${error.message}`);
     }
+  }
+
+  private async loadAndValidateEntity(urn: string): Promise<T> {
+    const entity = await this.loadEntity(urn);
+
+    if (!entity) {
+      this.logger.error(`Element not found`, urn);
+      throw new BadRequestException(`Entity not found`, urn);
+    }
+
+    const entityStatus = this.getEntityStatus(entity);
+    if (this.definition.states.finals.includes(entityStatus)) {
+      this.logger.warn(`Entity: ${urn} is in a final status. Accepting transitions due to a retry mechanism.`, urn);
+    }
+
+    return entity;
+  }
+
+  private async processWorkflow(
+    entity: T,
+    initialEvent: E,
+    urn: string,
+    payload?: T | P | object | string,
+  ): Promise<void> {
+    let currentEvent: E | null = initialEvent;
+    let currentEntity = entity;
+
+    while (currentEvent) {
+      // Process a single transition step
+      const result = await this.processTransitionStep(currentEntity, currentEvent, urn, payload);
+      currentEntity = result.entity;
+
+      // Break conditions
+      if (result.shouldBreak || this.isInIdleStatus(currentEntity) || this.isInFailedStatus(currentEntity)) {
+        return;
+      }
+
+      // Get next event for automatic transitions
+      currentEvent = this.nextEvent(currentEntity);
+      this.logger.log(`Next event: ${currentEvent ?? 'none'} Next status: ${this.getEntityStatus(currentEntity)}`, urn);
+    }
+  }
+
+  private async processTransitionStep(
+    entity: T,
+    event: E,
+    urn: string,
+    payload?: T | P | object | string,
+  ): Promise<{ entity: T; shouldBreak: boolean }> {
+    const entityStatus = this.getEntityStatus(entity);
+
+    // Find valid transition
+    const transition = await this.findValidTransition(entity, event, entityStatus, urn, payload);
+    if (!transition) {
+      if (this.definition.fallback) {
+        this.logger.log(`Falling back to the default transition`, urn);
+        return { entity: await this.definition.fallback(entity, event, payload), shouldBreak: true };
+      }
+      return { entity, shouldBreak: true };
+    }
+
+    this.logger.log(`Executing transition from ${entityStatus} to ${transition.to}`, urn);
+
+    // Process event actions
+    const eventActionResult = await this.executeEventActions(entity, event, urn, payload);
+    if (eventActionResult.failed) {
+      const failedEntity = await this.updateEntityStatus(entity, this.definition.states.failed);
+      this.logger.log(`Transition failed. Setting status to failed.`, urn);
+      return { entity: failedEntity, shouldBreak: true };
+    }
+
+    // Update entity status
+    let updatedEntity = await this.updateEntityStatus(eventActionResult.entity, transition.to);
+    this.logger.log(`Element transitioned from ${entityStatus} to ${transition.to}`, urn);
+
+    // Process status change actions
+    const statusChangeResult = await this.executeStatusChangeActions(
+      updatedEntity,
+      entityStatus,
+      transition.to,
+      urn,
+      payload,
+    );
+
+    if (statusChangeResult.failed) {
+      const failedEntity = await this.updateEntityStatus(updatedEntity, this.definition.states.failed);
+      this.logger.log(`Status change actions failed. Setting status to failed.`, urn);
+      return { entity: failedEntity, shouldBreak: true };
+    }
+
+    return { entity: statusChangeResult.entity, shouldBreak: false };
+  }
+
+  private async findValidTransition(
+    entity: T,
+    event: E,
+    currentStatus: S,
+    urn: string,
+    payload?: T | P | object | string,
+  ): Promise<TransitionEvent<T, P, E, S> | undefined> {
+    // Find transition event that matches the current event and state
+    const transitionEvent = this.definition.transitions.find((transition) => {
+      const events = Array.isArray(transition.event) ? transition.event : [transition.event];
+      const states = Array.isArray(transition.from) ? transition.from : [transition.from];
+      return events.includes(event) && states.includes(currentStatus);
+    });
+
+    if (!transitionEvent) {
+      this.logger.error(`Unable to find transition event for Event: ${event} and Status: ${currentStatus}`, urn);
+      return undefined;
+    }
+
+    const nextStatus = transitionEvent.to;
+
+    // Find all possible transitions for this status change
+    const possibleTransitions = this.definition.transitions.filter(
+      (t) => (Array.isArray(t.from) ? t.from.includes(currentStatus) : t.from === currentStatus) && t.to === nextStatus,
+    );
+
+    this.logger.log(`Possible transitions for ${urn}: ${JSON.stringify(possibleTransitions)}`, urn);
+
+    // Find the first valid transition based on conditions
+    for (const t of possibleTransitions) {
+      this.logger.log(`Checking conditional transition from ${currentStatus} to ${nextStatus}`, urn);
+
+      if (
+        !t.conditions ||
+        t.conditions.every((condition) => {
+          const result = condition(entity, payload);
+          this.logger.log(`Condition ${condition.name || 'anonymous'} result: ${result}`, urn);
+          return result;
+        })
+      ) {
+        return t;
+      }
+
+      this.logger.log(`Condition not met for transition from ${currentStatus} to ${nextStatus}`, urn);
+    }
+
+    this.logger.warn(
+      `There's no valid transition from ${currentStatus} to ${nextStatus} or the condition is not met.`,
+      urn,
+    );
+
+    return undefined;
+  }
+
+  private async executeEventActions(
+    entity: T,
+    event: E,
+    urn: string,
+    payload?: T | P | object | string,
+  ): Promise<{ entity: T; failed: boolean }> {
+    if (!this.actionsOnEvent.has(event)) {
+      return { entity, failed: false };
+    }
+
+    const actions = this.actionsOnEvent.get(event);
+    if (!actions || actions.length === 0) {
+      return { entity, failed: false };
+    }
+
+    this.logger.log(`Executing actions for event ${event}`, urn);
+    let updatedEntity = entity;
+
+    try {
+      for (const action of actions) {
+        this.logger.log(`Executing action ${action.name}`, urn);
+        updatedEntity = await action({ entity: updatedEntity, payload });
+      }
+      return { entity: updatedEntity, failed: false };
+    } catch (error) {
+      this.logger.error(`Event action failed: ${error.message}`, urn);
+      return { entity: updatedEntity, failed: true };
+    }
+  }
+
+  private async executeStatusChangeActions(
+    entity: T,
+    fromStatus: S,
+    toStatus: S,
+    urn: string,
+    payload?: T | P | object | string,
+  ): Promise<{ entity: T; failed: boolean }> {
+    const statusChangeKey = `${fromStatus}-${toStatus}`;
+
+    if (!this.actionsOnStatusChanged.has(statusChangeKey)) {
+      return { entity, failed: false };
+    }
+
+    const actions = this.actionsOnStatusChanged.get(statusChangeKey);
+    if (!actions || actions.length === 0) {
+      return { entity, failed: false };
+    }
+
+    this.logger.log(`Executing actions for status change from ${fromStatus} to ${toStatus}`, urn);
+    let updatedEntity = entity;
+
+    for (const action of actions) {
+      this.logger.log(`Executing action ${action.action.name}`, urn);
+      try {
+        updatedEntity = await action.action({ entity: updatedEntity, payload });
+      } catch (error) {
+        this.logger.error(`Status change action failed: ${error.message}`, urn);
+        if (action.failOnError) {
+          return { entity: updatedEntity, failed: true };
+        }
+      }
+    }
+
+    return { entity: updatedEntity, failed: false };
   }
 
   private nextEvent(entity: T): E | null {

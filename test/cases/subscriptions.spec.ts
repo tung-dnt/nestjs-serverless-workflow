@@ -1,8 +1,8 @@
 import Stripe from 'stripe';
 import { EntityService, WorkflowDefinition, WorkflowModule, WorkflowService  } from '@this/index';
 import { Global, Injectable, Module } from '@nestjs/common';
-import { WorkflowAction } from '@this/workflow/action.class.decorator';
-import { OnEvent } from '@this/workflow/action.event.method.decorator';
+import { WorkflowAction } from '@workflow/action.class.decorator';
+import { OnEvent } from '@workflow/action.event.method.decorator';
 import { Test, TestingModule } from '@nestjs/testing';
 
 export class Subscription {
