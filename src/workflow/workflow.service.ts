@@ -91,14 +91,12 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
 
   private async processWorkflow(
     entity: T,
-    initialEvent: E,
+    currentEvent: E,
     urn: string,
     payload?: T | P | object | string,
   ): Promise<void> {
-    let currentEvent: E | null = initialEvent;
     let currentEntity = entity;
 
-    while (currentEvent) {
       // Process a single transition step
       const result = await this.processTransitionStep(currentEntity, currentEvent, urn, payload);
       currentEntity = result.entity;
@@ -111,7 +109,6 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
       // Get next event for automatic transitions
       currentEvent = this.nextEvent(currentEntity);
       this.logger.log(`Next event: ${currentEvent ?? 'none'} Next status: ${this.getEntityStatus(currentEntity)}`, urn);
-    }
   }
 
   private async processTransitionStep(
@@ -172,18 +169,18 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
     payload?: T | P | object | string,
   ): Promise<TransitionEvent<T, P, E, S> | undefined> {
     // Find transition event that matches the current event and state
-    const transitionEvent = this.definition.transitions.find((transition) => {
+    const currentTransitionEvent = this.definition.transitions.find((transition) => {
       const events = Array.isArray(transition.event) ? transition.event : [transition.event];
       const states = Array.isArray(transition.from) ? transition.from : [transition.from];
       return events.includes(event) && states.includes(currentStatus);
     });
 
-    if (!transitionEvent) {
+    if (!currentTransitionEvent) {
       this.logger.error(`Unable to find transition event for Event: ${event} and Status: ${currentStatus}`, urn);
       return undefined;
     }
 
-    const nextStatus = transitionEvent.to;
+    const nextStatus = currentTransitionEvent.to;
 
     // Find all possible transitions for this status change
     const possibleTransitions = this.definition.transitions.filter(

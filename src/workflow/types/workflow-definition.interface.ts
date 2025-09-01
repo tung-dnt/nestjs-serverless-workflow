@@ -11,6 +11,7 @@ import { TransitionEvent } from './transition-event.interface';
  * - `Conditions`: An optional array of condition functions.
  * - `Entity`: An optional entity service or configuration for loading/updating entities.
  */
+// TODO: check for overlapping rules of event + from state
 export interface WorkflowDefinition<T, P, Event, State> {
   name: string;
   states: {

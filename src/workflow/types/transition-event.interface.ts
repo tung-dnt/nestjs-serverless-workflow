@@ -10,8 +10,8 @@ import { Trigger } from '@workflow/decorators/trigger.decorator';
  * as workflow actions classes that are decorated with the `@OnEvent` and/or `@OnStatusChanged` decorator.
  */
 export interface TransitionEvent<T, P, Event, States> {
-  event: Event | Event[];
-  from: States | States[];
+  event: Event;
+  from: States[];
   to: States;
   conditions?: ((entity: T, payload?: P | T | object | string) => boolean)[]; // | Type<any>[];
 }
