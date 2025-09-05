@@ -11,7 +11,8 @@ import { TransitionEvent } from './transition-event.interface';
  * - `Conditions`: An optional array of condition functions.
  * - `Entity`: An optional entity service or configuration for loading/updating entities.
  */
-// TODO: check for overlapping rules of event + from state
+// TODO: check for overlapping rules of event + from state:
+// 1) the same pair of from - to can only trigger to 1 event
 export interface WorkflowDefinition<T, P, Event, State> {
   name: string;
   states: {
@@ -21,7 +22,5 @@ export interface WorkflowDefinition<T, P, Event, State> {
   };
   transitions: TransitionEvent<T, P, Event, State>[];
   fallback?: (entity: T, event: Event, payload?: P | T | object | string) => Promise<T>;
-  actions?: any[];
   conditions?: ((entity: T, payload?: P | T | object | string) => boolean)[];
-  entity?: any;
 }

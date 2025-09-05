@@ -1,5 +1,3 @@
-import { Trigger } from '@workflow/decorators/trigger.decorator';
-
 /**
  * Defines the structure of a transition event in a workflow definition. This includes the following properties:
  * - `event`: The event that triggers the transition.

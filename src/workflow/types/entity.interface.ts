@@ -1,4 +1,4 @@
-export interface EntityService<T, State> {
+export interface Entity<T, State> {
   /**
    * Creates a new instance of the entity
    * @returns A new entity instance
@@ -18,7 +18,7 @@ export interface EntityService<T, State> {
    * @param urn The unique resource name of the entity
    * @returns The loaded entity
    */
-  load(urn: string): Promise<T | null>;
+  load(urn: string | number): Promise<T | null>;
 
   /**
    * Gets the current status of an entity
@@ -32,5 +32,5 @@ export interface EntityService<T, State> {
    * @param entity The entity
    * @returns The entity's URN
    */
-  urn(entity: T): string;
+  urn(entity: T): string | number;
 }
