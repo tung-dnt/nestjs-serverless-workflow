@@ -55,19 +55,19 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
    * @param params.payload - Optional payload associated with the transition
    * @returns A promise that resolves to the updated entity after the transition
    */
-  public async emit(params: { event: E; urn: string; payload?: T | P | object | string }): Promise<void> {
+  public async emit(params: { event: E; urn: string; payload?: T | P | object | string }): Promise<T> {
     const { event, urn, payload } = params;
-    await this.transition({ event, urn, payload });
+    return await this.transition({ event, urn, payload });
   }
 
-  private async transition(params: { event: E; urn: string; payload?: T | P | object | string }): Promise<void> {
+  private async transition(params: { event: E; urn: string; payload?: T | P | object | string }): Promise<T> {
     const { event, urn, payload } = params;
     this.logger.log(`Event: ${event}`, urn);
 
     try {
       // Load entity and validate
       const entity = await this.loadAndValidateEntity(urn);
-      await this.processWorkflow(entity, event, urn, payload);
+      return await this.processWorkflow(entity, event, urn, payload);
     } catch (error) {
       throw new Error(`Element: ${urn} Event: ${event} - ${error.message}`);
     }
@@ -94,21 +94,27 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
     currentEvent: E,
     urn: string,
     payload?: T | P | object | string,
-  ): Promise<void> {
+  ): Promise<T> {
     let currentEntity = entity;
+    let nextEvent: E | null = currentEvent;
 
+    // Process workflow transitions in a loop until no more transitions are possible
+    while (nextEvent !== null) {
       // Process a single transition step
-      const result = await this.processTransitionStep(currentEntity, currentEvent, urn, payload);
+      const result = await this.processTransitionStep(currentEntity, nextEvent, urn, payload);
       currentEntity = result.entity;
 
       // Break conditions
       if (result.shouldBreak || this.isInIdleStatus(currentEntity) || this.isInFailedStatus(currentEntity)) {
-        return;
+        break;
       }
 
       // Get next event for automatic transitions
-      currentEvent = this.nextEvent(currentEntity);
-      this.logger.log(`Next event: ${currentEvent ?? 'none'} Next status: ${this.getEntityStatus(currentEntity)}`, urn);
+      nextEvent = this.findNextEvent(currentEntity);
+      this.logger.log(`Next event: ${nextEvent ?? 'none'} Next status: ${this.getEntityStatus(currentEntity)}`, urn);
+    }
+
+    return currentEntity;
   }
 
   private async processTransitionStep(
@@ -281,53 +287,88 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
     return { entity: updatedEntity, failed: false };
   }
 
-  private nextEvent(entity: T): E | null {
-    const status = this.getEntityStatus(entity);
-    const nextTransitions = this.definition.transitions.filter(
-      (transition) =>
-        (Array.isArray(transition.from) ? transition.from.includes(status) : transition.from === status) &&
-        transition.to !== this.definition.states.failed,
-    );
-    if (nextTransitions && nextTransitions.length > 1) {
-      for (const transition of nextTransitions) {
-        const transitionEvent = this.definition.transitions.find((t) => t.event === transition.event);
-        if (transitionEvent) {
-          const transitionVector = this.definition.transitions.find((t) => t.to === transitionEvent.to);
-          if (transitionVector && transitionVector.conditions) {
-            let allConditionsMet = true;
+  /**
+   * Finds the next event for automatic workflow transitions based on the current entity state.
+   * This function determines which event should be triggered next in the workflow chain.
+   * 
+   * @param entity - The current entity to evaluate
+   * @returns The next event to trigger, or null if no automatic transition is available
+   */
+  private findNextEvent(entity: T): E | null {
+    const currentStatus = this.getEntityStatus(entity);
+    
+    // Find all possible transitions from the current status (excluding failed state transitions)
+    const availableTransitions = this.getAvailableTransitions(currentStatus);
+    
+    if (availableTransitions.length === 0) {
+      return null;
+    }
+    
+    // If only one transition available, use it (after validation)
+    if (availableTransitions.length === 1) {
+      return this.validateAndReturnSingleTransition(availableTransitions[0]);
+    }
+    
+    // Multiple transitions available - find the first one that meets all conditions
+    return this.findFirstValidTransition(entity, availableTransitions);
+  }
 
-            // Execute each condition separately and log the results
-            for (const condition of transition.conditions || []) {
-              const conditionResult = condition(entity);
-              this.logger.log(`Condition ${condition.name || 'unnamed'} result:`, conditionResult);
+  /**
+   * Gets all available transitions from the current status, excluding transitions to failed state
+   */
+  private getAvailableTransitions(currentStatus: S): TransitionEvent<T, P, E, S>[] {
+    return this.definition.transitions.filter((transition) => {
+      const fromStates = Array.isArray(transition.from) ? transition.from : [transition.from];
+      return fromStates.includes(currentStatus) && transition.to !== this.definition.states.failed;
+    });
+  }
 
-              if (!conditionResult) {
-                allConditionsMet = false;
-                // You can choose to break here or continue evaluating all conditions
-                // break;
-              }
-            }
+  /**
+   * Validates and returns the event for a single transition
+   */
+  private validateAndReturnSingleTransition(transition: TransitionEvent<T, P, E, S>): E {
+    if (Array.isArray(transition.event)) {
+      throw new Error('Multiple transition events are not allowed in a non-idle state');
+    }
+    return transition.event;
+  }
 
-            if (allConditionsMet) {
-              if (Array.isArray(transition.event)) {
-                throw new Error('Multiple transition events are not allowed in a non-idle state');
-              }
-              return transition.event;
-            } else {
-              this.logger.log(`Conditions not met for transition ${transition.event}`);
-            }
-          }
-        }
-      }
-    } else {
-      if (nextTransitions && nextTransitions.length === 1) {
-        if (Array.isArray(nextTransitions[0].event)) {
-          throw new Error('Multiple transition events are not allowed in a non-idle state');
-        }
-        return nextTransitions[0].event;
+  /**
+   * Finds the first transition that meets all conditions
+   */
+  private findFirstValidTransition(entity: T, transitions: TransitionEvent<T, P, E, S>[]): E | null {
+    for (const transition of transitions) {
+      if (this.areConditionsMet(entity, transition)) {
+        return this.validateAndReturnSingleTransition(transition);
       }
     }
+    
+    this.logger.log(`No valid transitions found for current state: ${this.getEntityStatus(entity)}`);
     return null;
+  }
+
+  /**
+   * Evaluates whether all conditions for a transition are met
+   */
+  private areConditionsMet(entity: T, transition: TransitionEvent<T, P, E, S>): boolean {
+    if (!transition.conditions || transition.conditions.length === 0) {
+      return true;
+    }
+
+    let allConditionsMet = true;
+    
+    for (const condition of transition.conditions) {
+      const conditionResult = condition(entity);
+      this.logger.log(`Condition ${condition.name || 'unnamed'} result: ${conditionResult}`);
+      
+      if (!conditionResult) {
+        allConditionsMet = false;
+        this.logger.log(`Conditions not met for transition ${transition.event}`);
+        // Continue evaluating all conditions for complete logging
+      }
+    }
+    
+    return allConditionsMet;
   }
 
   private isInIdleStatus(entity: T): boolean {

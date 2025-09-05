@@ -8,7 +8,11 @@ export const Trigger =
     descriptor.value = async function (...args: any[]) {
       const definition = Reflect.getMetadata('workflow:definition', target.constructor);
       console.log(`Method ${propertyKey} is being called with arguments:`, args);
-      const entity = await target.entityService.load('')
+      const entity = await target.entityService.load('');
+
+      if (!entity) {
+        throw new Error('Entity not found');
+      }
 
       /**
        * 1) Fetch Entity state
@@ -22,8 +26,13 @@ export const Trigger =
        */
       const result = await originalMethod.apply(this, args);
 
-      await target.entityService.update(entity, result.state);
-      await target.eventEmitter.emit('OrderCreated', { orderId: result.id });
+      if (result && result.state) {
+        await target.entityService.update(entity, result.state);
+      }
+      
+      if (result && result.id) {
+        await target.eventEmitter.emit('OrderCreated', { orderId: result.id });
+      }
     };
     return OnEvent(event)(target, propertyKey, descriptor);
   };
