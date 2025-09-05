@@ -7,7 +7,7 @@ import { BrokerPublisher } from '@event-bus/types/worlflow-event-emitter.interfa
 
 export function Workflow<T, P, Event, State>(definition: WorkflowDefinition<T, P, Event, State>) {
   return function <TClass extends { new (...args: any[]): {} }>(Base: TClass) {
-    @Controller(definition.name)
+    @Controller(definition.name || 'workflow')
     class MyWorkflow extends Base implements WorkflowController<T, State> {
       public entityService!: EntityService<T, State>;
       public brokerPublisher!: BrokerPublisher;

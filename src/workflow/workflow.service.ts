@@ -137,11 +137,23 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
 
     this.logger.log(`Executing transition from ${entityStatus} to ${transition.to}`, urn);
 
-    // Process event actions
-    const eventActionResult = await this.executeEventActions(entity, event, urn, payload);
+    // Execute inline actions from transition definition
+    let currentEntity = entity;
+    if (transition.actions && transition.actions.length > 0) {
+      const inlineActionResult = await this.executeInlineActions(currentEntity, transition.actions, urn, payload);
+      if (inlineActionResult.failed) {
+        const failedEntity = await this.updateEntityStatus(currentEntity, this.definition.states.failed);
+        this.logger.log(`Inline action failed. Setting status to failed.`, urn);
+        return { entity: failedEntity, shouldBreak: true };
+      }
+      currentEntity = inlineActionResult.entity;
+    }
+
+    // Process event actions (decorator-based)
+    const eventActionResult = await this.executeEventActions(currentEntity, event, urn, payload);
     if (eventActionResult.failed) {
-      const failedEntity = await this.updateEntityStatus(entity, this.definition.states.failed);
-      this.logger.log(`Transition failed. Setting status to failed.`, urn);
+      const failedEntity = await this.updateEntityStatus(currentEntity, this.definition.states.failed);
+      this.logger.log(`Event action failed. Setting status to failed.`, urn);
       return { entity: failedEntity, shouldBreak: true };
     }
 
@@ -219,6 +231,27 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
     );
 
     return undefined;
+  }
+
+  private async executeInlineActions(
+    entity: T,
+    actions: ((entity: T, payload?: P | T | object | string) => Promise<T>)[],
+    urn: string,
+    payload?: T | P | object | string,
+  ): Promise<{ entity: T; failed: boolean }> {
+    this.logger.log(`Executing ${actions.length} inline actions`, urn);
+    let updatedEntity = entity;
+
+    try {
+      for (const action of actions) {
+        this.logger.log(`Executing inline action ${action.name || 'anonymous'}`, urn);
+        updatedEntity = await action(updatedEntity, payload);
+      }
+      return { entity: updatedEntity, failed: false };
+    } catch (error) {
+      this.logger.error(`Inline action failed: ${error.message}`, urn);
+      return { entity: updatedEntity, failed: true };
+    }
   }
 
   private async executeEventActions(
@@ -314,12 +347,17 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
   }
 
   /**
-   * Gets all available transitions from the current status, excluding transitions to failed state
+   * Gets all available transitions from the current status for automatic transitions.
+   * Only includes transitions with single events since automatic transitions need a specific event.
    */
   private getAvailableTransitions(currentStatus: S): TransitionEvent<T, P, E, S>[] {
     return this.definition.transitions.filter((transition) => {
       const fromStates = Array.isArray(transition.from) ? transition.from : [transition.from];
-      return fromStates.includes(currentStatus) && transition.to !== this.definition.states.failed;
+      const hasCurrentStatus = fromStates.includes(currentStatus);
+      const notFailedTransition = transition.to !== this.definition.states.failed;
+      const isSingleEvent = !Array.isArray(transition.event); // Only single events for automatic transitions
+      
+      return hasCurrentStatus && notFailedTransition && isSingleEvent;
     });
   }
 
@@ -327,10 +365,8 @@ export class WorkflowService<T, P, E, S> implements OnModuleInit {
    * Validates and returns the event for a single transition
    */
   private validateAndReturnSingleTransition(transition: TransitionEvent<T, P, E, S>): E {
-    if (Array.isArray(transition.event)) {
-      throw new Error('Multiple transition events are not allowed in a non-idle state');
-    }
-    return transition.event;
+    // At this point we already filtered for single events in getAvailableTransitions
+    return transition.event as E;
   }
 
   /**

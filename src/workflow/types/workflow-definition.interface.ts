@@ -13,7 +13,7 @@ import { TransitionEvent } from './transition-event.interface';
  */
 // TODO: check for overlapping rules of event + from state
 export interface WorkflowDefinition<T, P, Event, State> {
-  name: string;
+  name?: string;
   states: {
     finals: State[];
     idles: State[];
