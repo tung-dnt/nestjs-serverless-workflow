@@ -7,7 +7,7 @@
  * Actions and conditions can be defined as functions that take an entity and an optional payload as arguments or
  * as workflow actions classes that are decorated with the `@OnEvent` and/or `@OnStatusChanged` decorator.
  */
-export interface TransitionEvent<T, P, Event, States> {
+export interface TransitionEvent<T, P, Event, States = string> {
   event: Event;
   from: States[];
   to: States;

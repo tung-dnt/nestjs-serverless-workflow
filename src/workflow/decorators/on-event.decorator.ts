@@ -16,8 +16,12 @@ import { WorkflowDefinition } from '@workflow/types/workflow-definition.interfac
  *
  * NOTE: tracking for runtime timeout event to resume workflow from interupting
  */
+// TODO:
+// 1. Handle concurrent update of the same entity - race condition
+// 2. Handle workflow session recovery from failed states
+// 3. Task schedule -> WAIT methods
 export const OnEvent =
-  <T, P, State>(event: string) =>
+  <T, P, State = string>(event: string) =>
   (target: WorkflowController<T, State>, propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
     const workflowDefinition: WorkflowDefinition<T, P, string, State> = Reflect.getMetadata(
@@ -41,109 +45,39 @@ export const OnEvent =
       return entity;
     }
 
-    async function findValidTransition(
-      entity: T,
-      event: string,
-      currentStatus: State,
-      urn: string | number,
-      payload?: P,
-    ): Promise<TransitionEvent<T, P, string, State> | undefined> {
-      // Find transition event that matches the current event and state
-      const currentTransitionEvent = workflowDefinition.transitions.find((transition) => {
-        const events = Array.isArray(transition.event) ? transition.event : [transition.event];
-        const states = Array.isArray(transition.from) ? transition.from : [transition.from];
-        return events.includes(event) && states.includes(currentStatus);
-      });
+    function findValidTransition(entity: T, payload: P): TransitionEvent<T, P, string, State> | null {
+      const currentStatus = target.entityService.status(entity);
+      const urn = target.entityService.urn(entity);
+      const possibleNextTransitionSet = new Set<State>();
 
-      if (!currentTransitionEvent) {
-        target.logger.error(`Unable to find transition event for Event: ${event} and Status: ${currentStatus}`, urn);
-        return undefined;
-      }
-      const nextStatus = currentTransitionEvent.to;
+      const possibleTransitions = workflowDefinition.transitions
+        // Find transition event that matches the current event and state
+        .filter((transition) => {
+          const events = Array.isArray(transition.event) ? transition.event : [transition.event];
+          const states = Array.isArray(transition.from) ? transition.from : [transition.from];
+          return events.includes(event) && states.includes(currentStatus);
+        })
+        // Condition checking
+        .filter(({ conditions, to }) => {
+          possibleNextTransitionSet.add(to);
+          if (!conditions) return true;
+          return conditions.every((condition) => condition(entity, payload));
+        });
 
-      // Find all possible transitions for this status change
-      const possibleTransitions = workflowDefinition.transitions.filter(
-        (t) =>
-          (Array.isArray(t.from) ? t.from.includes(currentStatus) : t.from === currentStatus) && t.to === nextStatus,
-      );
-
-      target.logger.log(`Possible transitions for ${urn}: ${JSON.stringify(possibleTransitions)}`, urn);
-
-      // Find the first valid transition based on conditions
-      for (const t of possibleTransitions) {
-        target.logger.log(`Checking conditional transition from ${currentStatus} to ${nextStatus}`, urn);
-
-        if (
-          !t.conditions ||
-          t.conditions.every((condition) => {
-            const result = condition(entity, payload);
-            target.logger.log(`Condition ${condition.name || 'anonymous'} result: ${result}`, urn);
-            return result;
-          })
-        ) {
-          return t;
-        }
-
-        target.logger.log(`Condition not met for transition from ${currentStatus} to ${nextStatus}`, urn);
+      if (possibleTransitions.length === 0) {
+        target.logger.warn(`There's no valid transition from ${currentStatus} or the condition is not met.`, urn);
+        return null;
       }
 
-      target.logger.warn(
-        `There's no valid transition from ${currentStatus} to ${nextStatus} or the condition is not met.`,
-        urn,
-      );
-
-      return undefined;
-    }
-
-    // TODO: clarify and adjust for Lambda runtime
-    function findNextEvent(entity: T): string | null {
-      const status = target.entityService.status(entity);
-      const nextTransitions = workflowDefinition.transitions.filter(
-        (transition) =>
-          (Array.isArray(transition.from) ? transition.from.includes(status) : transition.from === status) &&
-          transition.to !== workflowDefinition.states.failed,
-      );
-
-      if (nextTransitions && nextTransitions.length > 1) {
-        for (const transition of nextTransitions) {
-          const transitionEvent = workflowDefinition.transitions.find((t) => t.event === transition.event);
-
-          if (!transitionEvent) continue;
-
-          const transitionVector = workflowDefinition.transitions.find((t) => t.to === transitionEvent.to);
-          if (transitionVector && transitionVector.conditions) {
-            let allConditionsMet = true;
-
-            for (const condition of transition.conditions || []) {
-              // Execute each condition separately and log the results
-              const conditionResult = condition(entity);
-              target.logger.log(`Condition ${condition.name || 'unnamed'} result:`, conditionResult);
-
-              if (!conditionResult) {
-                allConditionsMet = false;
-                break;
-              }
-            }
-
-            if (allConditionsMet) {
-              if (Array.isArray(transition.event)) {
-                throw new Error('Multiple transition events are not allowed in a non-idle state');
-              }
-              return transition.event;
-            } else {
-              target.logger.log(`Conditions not met for transition ${transition.event}`);
-            }
-          }
-        }
-      } else {
-        if (Array.isArray(nextTransitions[0].event)) {
-          if (nextTransitions && nextTransitions.length === 1) {
-            throw new Error('Multiple transition events are not allowed in a non-idle state');
-          }
-          return nextTransitions[0].event;
-        }
+      const possibleNextTransitions = Array.from(possibleNextTransitionSet);
+      if (possibleNextTransitions.length > 1) {
+        throw new BadRequestException(
+          `Multiple "to" transition states is not allowed, please verify Workflow Definition at @Workflow decorator: [${possibleNextTransitions.join(', ')}]`,
+        );
       }
-      return null;
+
+      // Since event and "to" transition state will be similar
+      return possibleTransitions[0];
     }
 
     function isInIdleStatus(entity: T): boolean {
@@ -151,7 +85,6 @@ export const OnEvent =
       if (!status) {
         throw new Error('Entity status is not defined. Unable to determine if the entity is idle or not.');
       }
-
       return workflowDefinition.states.idles.includes(status);
     }
 
@@ -163,13 +96,13 @@ export const OnEvent =
       const entityStatus = target.entityService.status(entity);
       try {
         // Find valid transition
-        const transition = await findValidTransition(entity, event, entityStatus, urn, payload);
+        const transition = await findValidTransition(entity, payload);
         if (!transition) {
           if (workflowDefinition.fallback) {
             target.logger.log(`Falling back to the default transition`, urn);
             await workflowDefinition.fallback(entity, event, payload);
           }
-          throw WorkflowValidationException(
+          throw new BadRequestException(
             `No matched transition for event: ${event}, status: ${entityStatus}. Please verify your workflow definition!`,
           );
         }
@@ -196,11 +129,13 @@ export const OnEvent =
         target.logger.log(`Element transitioned from ${entityStatus} to ${transition.to}`, urn);
 
         // Get next event for automatic transitions
-        const nextEvent = findNextEvent(updatedEntity);
-        if (!nextEvent) {
+        const nextTransition = findValidTransition(updatedEntity, eventActionResult);
+        if (!nextTransition) {
           target.logger.warn('This is the last event, no more state transition');
           return;
         }
+
+        const nextEvent = nextTransition.event;
         target.logger.log(
           `Next event: ${event ?? 'none'} Next status: ${target.entityService.status(updatedEntity)}`,
           urn,
