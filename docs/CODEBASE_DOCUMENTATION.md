@@ -2,7 +2,7 @@
 
 ## Overview
 
-**@jescrich/nestjs-workflow** is a flexible workflow engine built on top of the NestJS framework, enabling developers to create, manage, and execute complex state machines and workflows in Node.js applications. The library follows a stateless architecture pattern and provides both declarative and decorator-based approaches for defining workflows.
+**@nestjs-serverless-workflow** is a flexible workflow engine built on top of the NestJS framework, enabling developers to create, manage, and execute complex state machines and workflows in Node.js applications. The library follows a stateless architecture pattern and provides both declarative and decorator-based approaches for defining workflows.
 
 ### Key Features
 
@@ -165,10 +165,10 @@ export class OrderActions {
     return entity;
   }
 
-  @OnStatusChanged({ 
-    from: OrderStatus.Processing, 
-    to: OrderStatus.Failed, 
-    failOnError: false 
+  @OnStatusChanged({
+    from: OrderStatus.Processing,
+    to: OrderStatus.Failed,
+    failOnError: false
   })
   async onProcessingFailed(params: { entity: Order; payload: any }): Promise<Order> {
     // This won't fail the workflow even if it throws
@@ -205,10 +205,10 @@ async handleSubmit(params: { entity: MyEntity; payload: any }): Promise<MyEntity
 Defines status change handlers.
 
 ```typescript
-@OnStatusChanged({ 
-  from: MyStatus.Pending, 
-  to: MyStatus.Processing, 
-  failOnError?: boolean 
+@OnStatusChanged({
+  from: MyStatus.Pending,
+  to: MyStatus.Processing,
+  failOnError?: boolean
 })
 async onStatusChange(params: { entity: MyEntity; payload: any }): Promise<MyEntity> {
   // Handle status change
@@ -319,9 +319,9 @@ describe('Order Workflow', () => {
 
   it('should transition from pending to processing', async () => {
     testEntity.status = OrderStatus.Pending;
-    const result = await service.emit({ 
-      event: OrderEvent.Submit, 
-      urn: testEntity.id 
+    const result = await service.emit({
+      event: OrderEvent.Submit,
+      urn: testEntity.id
     });
     expect(result.status).toBe(OrderStatus.Processing);
   });
@@ -401,7 +401,7 @@ test/
 
 ### Installation
 ```bash
-npm install @jescrich/nestjs-workflow
+npm install @nestjs-serverless-workflow
 ```
 
 ### Dependencies
@@ -472,4 +472,4 @@ MIT License - See LICENSE file for details.
 
 ## Contributing
 
-See CONTRIBUTING.md for development guidelines and contribution process. 
+See CONTRIBUTING.md for development guidelines and contribution process.

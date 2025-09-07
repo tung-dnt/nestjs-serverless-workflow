@@ -11,7 +11,7 @@ A flexible workflow engine built on top of NestJS framework, enabling developers
 
 Explore fully functional examples with **interactive visual demos** in our dedicated examples repository:
 
-### 👉 **[View Examples Repository](https://github.com/jescrich/nestjs-workflow-examples)**
+### 👉 **[View Examples Repository](https://github.com/@nestjs-serverless-workflow-examples)**
 
 The repository includes three comprehensive real-world examples:
 
@@ -25,7 +25,7 @@ Each example features:
 - 🤖 **Automated Scenarios** - Pre-built test cases demonstrating various workflow paths
 - 📝 **Full Source Code** - Production-ready implementations you can adapt
 
-**[➡️ Get Started with Examples](https://github.com/jescrich/nestjs-workflow-examples#-quick-start)**
+**[➡️ Get Started with Examples](https://github.com/@nestjs-serverless-workflow-examples#-quick-start)**
 
 ## Table of Contents
 - [Features](#features)
@@ -51,7 +51,7 @@ Each example features:
 - Kafka Integration: Easily integrate with Kafka for event-driven workflows
 - Stateless Design: Lightweight implementation with no additional storage requirements
 
-Documentation: https://jescrich.github.io/libraries/docs/workflow/intro
+Documentation: https://@nestjs-serverless-workflow.github.io/libraries/docs/workflow/intro
 
 # Stateless Architecture
 ## NestJS Workflow is designed with a stateless architecture, which offers several key benefits:
@@ -88,12 +88,12 @@ The workflow engine simply reads and updates this state property according to yo
 
 ## Installation
 ```bash
-npm install @jescrich/nestjs-workflow
+npm install @nestjs-serverless-workflow
 ```
 
 Or using yarn:
 ```bash
-yarn add @jescrich/nestjs-workflow
+yarn add @nestjs-serverless-workflow
 ```
 
 ## Quick Start
@@ -104,7 +104,7 @@ Before diving into code, experience workflows visually with our interactive demo
 
 ```bash
 # Quick demo setup
-git clone https://github.com/jescrich/nestjs-workflow-examples.git
+git clone https://github.com/@nestjs-serverless-workflow-examples.git
 cd nestjs-workflow-examples/01-user-onboarding
 npm install && npm run demo
 ```
@@ -124,12 +124,12 @@ You'll see an interactive workflow visualization like this:
                                          ╚══════════╝
 ```
 
-**[🚀 Explore All Examples](https://github.com/jescrich/nestjs-workflow-examples)**
+**[🚀 Explore All Examples](https://github.com/@nestjs-serverless-workflow-examples)**
 
 ### Module Registration
 ```typescript
 import { Module } from '@nestjs/common';
-import { WorkflowModule } from '@jescrich/nestjs-workflow';
+import { WorkflowModule } from '@nestjs-serverless-workflow';
 
 // Register a workflow
 @Module({
@@ -145,7 +145,7 @@ export class AppModule {}
 ```
 ### Define a Workflow
 ```typescript
-import { WorkflowDefinition } from '@jescrich/nestjs-workflow';
+import { WorkflowDefinition } from '@nestjs-serverless-workflow';
 
 // Define your entity and state/event enums
 export enum OrderEvent {
@@ -228,7 +228,7 @@ const orderWorkflowDefinition: WorkflowDefinition<Order, any, OrderEvent, OrderS
 ### Use the Workflow in a Service
 ```typescript
 import { Injectable } from '@nestjs/common';
-import { WorkflowService } from '@jescrich/nestjs-workflow';
+import { WorkflowService } from '@nestjs-serverless-workflow';
 import { Order, OrderEvent, OrderStatus } from './order.model';
 
 @Injectable()
@@ -300,7 +300,7 @@ For more complex workflows, you can use a class-based approach with decorators:
 
 ```typescript
 import { Injectable } from '@nestjs/common';
-import { WorkflowAction, OnEvent, OnStatusChanged } from '@jescrich/nestjs-workflow';
+import { WorkflowAction, OnEvent, OnStatusChanged } from '@nestjs-serverless-workflow';
 
 @Injectable()
 @WorkflowAction()
@@ -572,7 +572,7 @@ Instead of defining entity operations inline in your workflow definition, you ca
 
 ```typescript
 import { Injectable } from '@nestjs/common';
-import { EntityService } from '@jescrich/nestjs-workflow';
+import { EntityService } from '@nestjs-serverless-workflow';
 import { Order, OrderStatus } from './order.model';
 import { OrderRepository } from './order.repository';
 
@@ -656,7 +656,7 @@ This approach is particularly useful for complex applications where entities are
 ## 📚 Examples & Learning Resources
 
 ### Interactive Examples Repository
-The best way to learn is by exploring our **[comprehensive examples repository](https://github.com/jescrich/nestjs-workflow-examples)** which includes:
+The best way to learn is by exploring our **[comprehensive examples repository](https://github.com/@nestjs-serverless-workflow-examples)** which includes:
 
 #### 1. User Onboarding Workflow Example
 Demonstrates a real-world user registration and verification system:
@@ -686,7 +686,7 @@ Event-driven inventory system with Kafka integration:
 
 ```bash
 # Clone the examples repository
-git clone https://github.com/jescrich/nestjs-workflow-examples.git
+git clone https://github.com/@nestjs-serverless-workflow-examples.git
 cd nestjs-workflow-examples
 
 # Install all examples
