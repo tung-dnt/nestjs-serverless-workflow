@@ -4,6 +4,22 @@ import { TransitionEvent } from '@workflow/types/transition-event.interface';
 import { WorkflowController } from '@workflow/types/workflow-controller.interface';
 import { WorkflowDefinition } from '@workflow/types/workflow-definition.interface';
 
+export function Entity(): ParameterDecorator {
+  return (target: Object, propertyKey: string | symbol, parameterIndex: number) => {
+    const existing: Array<any> = Reflect.getOwnMetadata('workflow:params', target, propertyKey) || [];
+    existing.push({ index: parameterIndex, type: 'entity' });
+    Reflect.defineMetadata('workflow:params', existing, target, propertyKey);
+  };
+}
+
+export function Payload(dto?: any): ParameterDecorator {
+  return (target: Object, propertyKey: string | symbol, parameterIndex: number) => {
+    const existing: Array<any> = Reflect.getOwnMetadata('workflow:params', target, propertyKey) || [];
+    existing.push({ index: parameterIndex, type: 'payload', dto });
+    Reflect.defineMetadata('workflow:params', existing, target, propertyKey);
+  };
+}
+
 /**
  * 1) Fetch Entity state
  * 2) Check if transition is valid
@@ -96,7 +112,7 @@ export const OnEvent =
       const entityStatus = target.entityService.status(entity);
       try {
         // Find valid transition
-        const transition = await findValidTransition(entity, payload);
+        const transition = findValidTransition(entity, payload);
         if (!transition) {
           if (workflowDefinition.fallback) {
             target.logger.log(`Falling back to the default transition`, urn);
@@ -116,8 +132,25 @@ export const OnEvent =
         // Process event actions
         let eventActionResult = null;
         try {
+          // Build args for original method based on parameter decorators (if any)
+          const paramsMeta: Array<{ index: number; type: string; dto?: any }> =
+            Reflect.getOwnMetadata('workflow:params', target, propertyKey) || [];
+
+          let args: any[] = [];
+          if (paramsMeta && paramsMeta.length > 0) {
+            // populate args according to metadata indices
+            for (const meta of paramsMeta) {
+              if (meta.type === 'entity') args[meta.index] = entity;
+              else if (meta.type === 'payload') args[meta.index] = payload;
+              else args[meta.index] = undefined;
+            }
+          } else {
+            // legacy: single object param { entity, payload }
+            args = [{ entity, payload }];
+          }
+
           // NOTE: user logic
-          eventActionResult = await originalMethod.apply(this, { entity, payload });
+          eventActionResult = await originalMethod.apply(this, args);
         } catch (e) {
           await target.entityService.update(entity, workflowDefinition.states.failed);
           target.logger.log(`Transition failed. Setting status to failed.`, urn);
@@ -125,7 +158,7 @@ export const OnEvent =
         }
 
         // Update entity status
-        const updatedEntity = await target.entityService.update(eventActionResult.entity, transition.to);
+        const updatedEntity = await target.entityService.update(entity, transition.to);
         target.logger.log(`Element transitioned from ${entityStatus} to ${transition.to}`, urn);
 
         // Get next event for automatic transitions

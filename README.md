@@ -39,7 +39,7 @@ Each example features:
 - [Complete Example with Kafka Integration](#complete-example-with-kafka-integration)
 - [Entity Service](#entity-service)
 - [Kafka Integration](#using-entityservice-with-workflow)
-  
+
 ## Features
 - Workflow Definitions: Define workflows using a simple, declarative syntax
 - State Management: Track and persist workflow states
@@ -79,7 +79,7 @@ export class Order {
   items: OrderItem[];
   totalAmount: number;
   status: OrderStatus; // The workflow state is a property of your entity
-  
+
   // Your domain logic here
 }
 ```
@@ -236,7 +236,7 @@ export class OrderService {
   constructor(
     private readonly workflowService: WorkflowService<Order, any, OrderEvent, OrderStatus>,
   ) {}
-  
+
   async createOrder() {
     const order = new Order();
     order.id = 'order-123';
@@ -244,20 +244,20 @@ export class OrderService {
     order.price = 100;
     order.items = ['Item 1', 'Item 2', 'Item 3'];
     order.status = OrderStatus.Pending;
-    
+
     return order;
   }
-  
+
   async submitOrder(id: string) {
     // Emit an event to trigger workflow transition
-    const result = await this.workflowService.emit({ 
-      urn: id, 
-      event: OrderEvent.Submit 
+    const result = await this.workflowService.emit({
+      urn: id,
+      event: OrderEvent.Submit
     });
-    
+
     return result;
   }
-  
+
   async updateOrder(id: string, price: number, items: string[]) {
     // Emit an event with payload to update the order
     const result = await this.workflowService.emit({
@@ -268,7 +268,7 @@ export class OrderService {
         items: items,
       },
     });
-    
+
     return result;
   }
 }
@@ -381,10 +381,10 @@ onStatusChanged(params: { entity: Order; payload: any }): Promise<Order> {
 You can disable this behavior by setting failOnError: false:
 
 ```typescript
-@OnStatusChanged({ 
-  from: OrderStatus.Pending, 
-  to: OrderStatus.Processing, 
-  failOnError: false 
+@OnStatusChanged({
+  from: OrderStatus.Pending,
+  to: OrderStatus.Processing,
+  failOnError: false
 })
 onStatusChanged(params: { entity: Order; payload: any }): Promise<Order> {
   // If this throws an error, the workflow will continue to the next state
@@ -426,7 +426,7 @@ const orderWorkflowDefinition: WorkflowDefinition<Order, any, OrderEvent, OrderS
   transitions: [
     // Your transitions here
   ],
-  
+
   // Kafka configuration
   kafka: {
     brokers: 'localhost:9092',
@@ -436,7 +436,7 @@ const orderWorkflowDefinition: WorkflowDefinition<Order, any, OrderEvent, OrderS
       { topic: 'orders.failed', event: OrderEvent.Fail }
     ]
   },
-  
+
   entity: {
     // Entity configuration
     new: () => new Order(),
@@ -469,8 +469,10 @@ When you configure Kafka integration:
 ### Complete Example with Kafka Integration
 
 ````typescript
-import { Injectable, Module } from '@nestjs/common';
-import { WorkflowModule, WorkflowDefinition, WorkflowService } from '@jescrich/nestjs-workflow';
+import { Module } from '@nestjs/common';
+import { WorkflowModule, Workflow, OnEvent, Payload, Entity } from '@nestjs-serverless-workflow';
+import { OrderEntityService } from './order-entity.service';
+
 
 // Define your entity and state/event enums
 export enum OrderEvent {
@@ -494,72 +496,57 @@ export class Order {
   items: string[];
   status: OrderStatus;
 }
-
-// Create workflow definition with Kafka integration
-const orderWorkflowDefinition: WorkflowDefinition<Order, any, OrderEvent, OrderStatus> = {
-  states: {
-    finals: [OrderStatus.Completed, OrderStatus.Failed],
-    idles: [OrderStatus.Pending, OrderStatus.Processing, OrderStatus.Completed, OrderStatus.Failed],
-    failed: OrderStatus.Failed,
-  },
-  transitions: [
-    {
-      from: OrderStatus.Pending,
-      to: OrderStatus.Processing,
-      event: OrderEvent.Submit,
-      conditions: [(entity: Order, payload: any) => entity.price > 10],
+@Workflow({
+    states: {
+      finals: [OrderStatus.Completed, OrderStatus.Failed],
+      idles: [OrderStatus.Pending, OrderStatus.Processing, OrderStatus.Completed, OrderStatus.Failed],
+      failed: OrderStatus.Failed,
     },
-    {
-      from: OrderStatus.Processing,
-      to: OrderStatus.Completed,
-      event: OrderEvent.Complete,
-    },
-    {
-      from: OrderStatus.Processing,
-      to: OrderStatus.Failed,
-      event: OrderEvent.Fail,
-    },
-  ],
-  
-  // Kafka configuration
-  kafka: {
-    brokers: 'localhost:9092',
-    events: [
-      { topic: 'orders.submitted', event: OrderEvent.Submit },
-      { topic: 'orders.completed', event: OrderEvent.Complete },
-      { topic: 'orders.failed', event: OrderEvent.Fail }
-    ]
-  },
-  
-  entity: {
-    new: () => new Order(),
-    update: async (entity: Order, status: OrderStatus) => {
-      entity.status = status;
-      return entity;
-    },
-    load: async (urn: string) => {
-      // In a real application, load from database
-      const order = new Order();
-      order.id = urn;
-      order.status = OrderStatus.Pending;
-      return order;
-    },
-    status: (entity: Order) => entity.status,
-    urn: (entity: Order) => entity.id
+    transitions: [
+      // Your transitions here
+      {
+        from: OrderStatus.Pending,
+        to: OrderStatus.Processing,
+        event: OrderEvent.Submit,
+        conditions: [(entity: Order, payload: any) => entity.price > 10],
+      },
+      {
+        from: OrderStatus.Processing,
+        to: OrderStatus.Completed,
+        event: OrderEvent.Complete,
+      },
+      {
+        from: OrderStatus.Processing,
+        to: OrderStatus.Failed,
+        event: OrderEvent.Fail,
+      }
+    ],
+  };
+})
+class OrderWorkflowDefinition {
+  @OnEvent(OrderEvent.Submit)
+  async onSubmit(@Entity entity: Order, @Payload(YourClassValidatorDto) submitData): Promise<Order> {
+    // Custom logic on submit event
   }
-};
+}
 
 @Module({
   imports: [
     WorkflowModule.register({
-      name: 'orderWorkflow',
-      definition: orderWorkflowDefinition,
+      providers: [
+        {
+          provide: OrderWorkflowDefinition,
+          useFactory: (orderEntityService: OrderEntityService, eventEmitter: EventEmitter2) => {
+            return new OrderWorkflowDefinition(orderEntityService, eventEmitter);
+          },
+          inject: [OrderEntityService, EventEmitter2]
+        }
+      ]
     }),
   ],
 })
 export class AppModule {}
-
-````
+```
 
 ### Message Format
 
@@ -652,74 +639,6 @@ There are two ways to use your EntityService with a workflow:
 #### 1. Reference in Workflow Definition
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { WorkflowModule } from '@jescrich/nestjs-workflow';
-import { OrderEntityService } from './order-entity.service';
-
-const orderWorkflowDefinition: WorkflowDefinition<Order, any, OrderEvent, OrderStatus> = {
-  states: {
-    finals: [OrderStatus.Completed, OrderStatus.Failed],
-    idles: [OrderStatus.Pending, OrderStatus.Processing, OrderStatus.Completed, OrderStatus.Failed],
-    failed: OrderStatus.Failed,
-  },
-  transitions: [
-    // Your transitions here
-  ],
-  
-  // Reference your EntityService class instead of inline functions
-  entity: OrderEntityService,
-};
-
-@Module({
-  imports: [
-    WorkflowModule.register({
-      name: 'orderWorkflow',
-      definition: orderWorkflowDefinition,
-    }),
-  ],
-})
-export class AppModule {}
-```
-
-#### 2. Inject into WorkflowService
-
-You can also inject your EntityService directly when creating a WorkflowService instance:
-
-```typescript
-@Injectable()
-export class OrderService {
-  private workflowService: WorkflowService<Order, any, OrderEvent, OrderStatus>;
-  
-  constructor(
-    private readonly moduleRef: ModuleRef,
-    private readonly orderEntityService: OrderEntityService
-  ) {
-    const workflowDefinition = {
-      states: {
-        finals: [OrderStatus.Completed, OrderStatus.Failed],
-        idles: [OrderStatus.Pending, OrderStatus.Processing, OrderStatus.Completed, OrderStatus.Failed],
-        failed: OrderStatus.Failed,
-      },
-      transitions: [
-        // Your transitions here
-      ],
-      
-      // You can still include entity here, but it will be overridden by the injected service
-      entity: {
-        new: () => new Order(),
-        // other methods...
-      }
-    };
-    
-    this.workflowService = new WorkflowService(
-      workflowDefinition,
-      this.moduleRef,
-      this.orderEntityService // Inject the entity service
-    );
-  }
-  
-  // Your service methods using workflowService
-}
 ```
 
 ### Benefits of Using EntityService
@@ -747,7 +666,7 @@ Demonstrates a real-world user registration and verification system:
 - Compliance checks (KYC/AML)
 - States: `REGISTERED` → `EMAIL_VERIFIED` → `PROFILE_COMPLETE` → `IDENTITY_VERIFIED` → `ACTIVE`
 
-#### 2. E-Commerce Order Processing Example  
+#### 2. E-Commerce Order Processing Example
 Complete order lifecycle management system:
 - Payment processing with retry logic
 - Inventory reservation and management
