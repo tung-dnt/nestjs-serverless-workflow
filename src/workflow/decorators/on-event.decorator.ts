@@ -39,76 +39,95 @@ export function Payload<P>(dto?: P): ParameterDecorator {
 export const OnEvent =
   <T, State = string>(event: string) =>
   (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+    // capture the original user method before we replace the descriptor
     const originalMethod = descriptor.value;
-    const instance = target.constructor as WorkflowController<T, State>;
-    const workflowDefinition: WorkflowDefinition<T, string, State> = Reflect.getMetadata(
-      'workflow:definition',
-      target.constructor,
-    );
 
-    async function loadAndValidateEntity(urn: string | number): Promise<T> {
-      const entity = await instance.entityService.load(urn);
-
-      if (!entity) {
-        instance.logger.error(`Element not found`, urn);
-        throw new BadRequestException(`Entity not found`, String(urn));
-      }
-
-      const entityStatus = instance.entityService.status(entity);
-      if (workflowDefinition.states.finals.includes(entityStatus)) {
-        instance.logger.warn(
-          `Entity: ${urn} is in a final status. Accepting transitions due to a retry mechanism.`,
-          urn,
-        );
-      }
-
-      return entity;
-    }
-
-    function findValidTransition<P>(entity: T, payload: P): TransitionEvent<T, string, State> | null {
-      const currentStatus = instance.entityService.status(entity);
-      const urn = instance.entityService.urn(entity);
-      const possibleNextTransitionSet = new Set<State>();
-
-      const possibleTransitions = workflowDefinition.transitions
-        // Find transition event that matches the current event and state
-        .filter((transition) => {
-          const events = Array.isArray(transition.event) ? transition.event : [transition.event];
-          const states = Array.isArray(transition.from) ? transition.from : [transition.from];
-          return events.includes(event) && states.includes(currentStatus);
-        })
-        // Condition checking
-        .filter(({ conditions, to }) => {
-          possibleNextTransitionSet.add(to);
-          if (!conditions) return true;
-          return conditions.every((condition) => condition(entity, payload));
-        });
-
-      if (possibleTransitions.length === 0) {
-        instance.logger.warn(`There's no valid transition from ${currentStatus} or the condition is not met.`, urn);
-        return null;
-      }
-
-      const possibleNextTransitions = Array.from(possibleNextTransitionSet);
-      if (possibleNextTransitions.length > 1) {
-        throw new BadRequestException(
-          `Multiple "to" transition states is not allowed, please verify Workflow Definition at @Workflow decorator: [${possibleNextTransitions.join(', ')}]`,
-        );
-      }
-
-      // Since event and "to" transition state will be similar
-      return possibleTransitions[0];
-    }
-
-    function isInIdleStatus(entity: T): boolean {
-      const status = instance.entityService.status(entity);
-      if (!status) {
-        throw new Error('Entity status is not defined. Unable to determine if the entity is idle or not.');
-      }
-      return workflowDefinition.states.idles.includes(status);
-    }
-
+    // Replace the method with a wrapper that uses the controller instance (`this`)
     descriptor.value = async function <P>(params: { urn: string | number; payload: P }) {
+      // Resolve the actual controller instance at runtime from `this`
+      const instance = this as WorkflowController<T, State>;
+
+      // Resolve workflowDefinition at runtime from the concrete instance's constructor.
+      // Class decorators (like @Workflow) are applied after method decorators, so reading metadata
+      // from `target` at decoration time may return undefined. Using `instance.constructor` ensures
+      // we read metadata from the actual class when the handler runs.
+      const workflowDefinition: WorkflowDefinition<T, string, State> = Reflect.getMetadata(
+        'workflow:definition',
+        instance.constructor,
+      );
+      if (!workflowDefinition) {
+        const className = instance?.constructor?.name ?? target?.name ?? 'Unknown';
+        throw new Error(
+          `Workflow definition metadata is missing for controller class "${className}". Ensure @Workflow(...) is applied to the class and that decorators are not reordered.`,
+        );
+      }
+
+      // Helper: load and validate entity using runtime instance
+      async function loadAndValidateEntity(urn: string | number): Promise<T> {
+        const entity = await instance.entityService.load(urn);
+
+        if (!entity) {
+          instance.logger.error(`Element not found`, urn);
+          throw new BadRequestException(`Entity not found`, String(urn));
+        }
+
+        const entityStatus = instance.entityService.status(entity);
+        if (workflowDefinition.states.finals.includes(entityStatus)) {
+          instance.logger.warn(
+            `Entity: ${urn} is in a final status. Accepting transitions due to a retry mechanism.`,
+            urn,
+          );
+        }
+
+        return entity;
+      }
+
+      // Helper: find valid transition using runtime instance
+      function findValidTransition<P>(entity: T, payload: P): TransitionEvent<T, string, State> | null {
+        const currentStatus = instance.entityService.status(entity);
+        const urn = instance.entityService.urn(entity);
+        const possibleNextTransitionSet = new Set<State>();
+
+        const possibleTransitions = workflowDefinition.transitions
+          // Find transition event that matches the current event and state
+          .filter((transition) => {
+            const events = Array.isArray(transition.event) ? transition.event : [transition.event];
+            const states = Array.isArray(transition.from) ? transition.from : [transition.from];
+            return events.includes(event) && states.includes(currentStatus);
+          })
+          // Condition checking
+          .filter(({ conditions, to }) => {
+            possibleNextTransitionSet.add(to);
+            if (!conditions) return true;
+            return conditions.every((condition) => condition(entity, payload));
+          });
+
+        if (possibleTransitions.length === 0) {
+          instance.logger.warn(`There's no valid transition from ${currentStatus} or the condition is not met.`, urn);
+          return null;
+        }
+
+        const possibleNextTransitions = Array.from(possibleNextTransitionSet);
+        if (possibleNextTransitions.length > 1) {
+          throw new BadRequestException(
+            `Multiple "to" transition states is not allowed, please verify Workflow Definition at @Workflow decorator: [${possibleNextTransitions.join(', ')}]`,
+          );
+        }
+
+        // Since event and "to" transition state will be similar
+        return possibleTransitions[0];
+      }
+
+      // Helper: check idle status using runtime instance
+      function isInIdleStatus(entity: T): boolean {
+        const status = instance.entityService.status(entity);
+        if (!status) {
+          throw new Error('Entity status is not defined. Unable to determine if the entity is idle or not.');
+        }
+        return workflowDefinition.states.idles.includes(status);
+      }
+
+      // Begin wrapper logic
       const { urn, payload } = params;
       instance.logger.log(`Method ${propertyKey} is being called with arguments:`, params);
 
@@ -153,7 +172,7 @@ export const OnEvent =
             args = [{ entity, payload }];
           }
 
-          // NOTE: user logic
+          // NOTE: user logic - call original method with the runtime `this`
           eventActionResult = await originalMethod.apply(this, args);
         } catch (e) {
           await instance.entityService.update(entity, workflowDefinition.states.failed);
@@ -184,5 +203,7 @@ export const OnEvent =
 
       // TODO: add runtime timeout calculator
     };
+
+    // Register with Nest's event emitter (returns the decorated descriptor)
     return OnEventListener(event, { async: true })(target, propertyKey, descriptor);
   };

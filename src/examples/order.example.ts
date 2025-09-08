@@ -149,7 +149,7 @@ export class OrderWorkflow implements WorkflowController<Order, OrderState> {
 
   @OnEvent<Order, OrderState>(OrderEvent.CREATED)
   async handleOrderCreated(@EntityParam() order: Order, @Payload() payload: any) {
-    this.logger.log(`handleOrderCreated called for order ${order.id}, source=${payload}`);
+    this.logger.log(`handleOrderCreated called for order ${order.id}, source=${JSON.stringify(payload)}`);
     // example action: charge payment, validate items, etc.
     // We'll just log and return some payload used by next transition checks
     return { processedAt: new Date().toISOString() };
@@ -189,7 +189,7 @@ export class OrderController {
   @Post('orders')
   async createOrder(): Promise<void> {
     const order = await this.orderEntityService.create();
-    this.eventEmitter.emit(OrderEvent.CREATED, { key: order.id, payload: { source: 'api' } });
+    this.eventEmitter.emit(OrderEvent.CREATED, { urn: order.id, payload: { source: 'api' } });
   }
 }
 
