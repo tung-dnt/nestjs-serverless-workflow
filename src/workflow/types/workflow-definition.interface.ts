@@ -11,14 +11,14 @@ import { TransitionEvent } from './transition-event.interface';
  * - `Conditions`: An optional array of condition functions.
  * - `Entity`: An optional entity service or configuration for loading/updating entities.
  */
-export interface WorkflowDefinition<T, P, Event, State> {
+export interface WorkflowDefinition<T, Event, State> {
   name: string;
   states: {
     finals: State[];
     idles: State[];
     failed: State;
   };
-  transitions: TransitionEvent<T, P, Event, State>[];
-  fallback?: (entity: T, event: Event, payload?: P | T | object | string) => Promise<T>;
-  conditions?: ((entity: T, payload?: P | T | object | string) => boolean)[];
+  transitions: TransitionEvent<T, Event, State>[];
+  fallback?: <P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<T>;
+  conditions?: (<P>(entity: T, payload?: P | T | object | string) => boolean)[];
 }

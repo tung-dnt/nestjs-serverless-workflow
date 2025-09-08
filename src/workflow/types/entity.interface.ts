@@ -1,9 +1,9 @@
-export interface Entity<T, State> {
+export interface IEntity<T, State> {
   /**
    * Creates a new instance of the entity
    * @returns A new entity instance
    */
-  new (): Promise<T>;
+  create(): Promise<T>;
 
   /**
    * Updates the status of an entity

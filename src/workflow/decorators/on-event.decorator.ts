@@ -12,7 +12,7 @@ export function Entity(): ParameterDecorator {
   };
 }
 
-export function Payload(dto?: any): ParameterDecorator {
+export function Payload<P>(dto?: P): ParameterDecorator {
   return (target: Object, propertyKey: string | symbol, parameterIndex: number) => {
     const existing: Array<any> = Reflect.getOwnMetadata('workflow:params', target, propertyKey) || [];
     existing.push({ index: parameterIndex, type: 'payload', dto });
@@ -33,14 +33,14 @@ export function Payload(dto?: any): ParameterDecorator {
  * NOTE: tracking for runtime timeout event to resume workflow from interupting
  */
 // TODO:
-// 1. Handle concurrent update of the same entity - race condition
+// 1. Idempotency key to avoid duplicated event processing
 // 2. Handle workflow session recovery from failed states
 // 3. Task schedule -> WAIT methods
 export const OnEvent =
-  <T, P, State = string>(event: string) =>
+  <T, State = string>(event: string) =>
   (target: WorkflowController<T, State>, propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
-    const workflowDefinition: WorkflowDefinition<T, P, string, State> = Reflect.getMetadata(
+    const workflowDefinition: WorkflowDefinition<T, string, State> = Reflect.getMetadata(
       'workflow:definition',
       target.constructor,
     );
@@ -61,7 +61,7 @@ export const OnEvent =
       return entity;
     }
 
-    function findValidTransition(entity: T, payload: P): TransitionEvent<T, P, string, State> | null {
+    function findValidTransition<P>(entity: T, payload: P): TransitionEvent<T, string, State> | null {
       const currentStatus = target.entityService.status(entity);
       const urn = target.entityService.urn(entity);
       const possibleNextTransitionSet = new Set<State>();
@@ -104,7 +104,7 @@ export const OnEvent =
       return workflowDefinition.states.idles.includes(status);
     }
 
-    descriptor.value = async function (params: { urn: string | number; payload: P }) {
+    descriptor.value = async function <P>(params: { urn: string | number; payload: P }) {
       const { urn, payload } = params;
       target.logger.log(`Method ${propertyKey} is being called with arguments:`, params);
 

@@ -1,0 +1,184 @@
+/**
+ * Example Order workflow, entity service, broker and module
+ *
+ * This file demonstrates an example usage of the workflow primitives contained in
+ * `src/workflow/*` with:
+ * - a simple in-memory `Order` entity service implementing the `Entity<T,State>` interface
+ * - a minimal `BrokerPublisher` implementation (mock)
+ * - an example `OrderWorkflow` controller using the `@Workflow` and `@OnEvent` decorators
+ * - an `OrderModule` that wires everything up for Nest
+ *
+ * NOTE:
+ * - This file is intended as an example only and uses an in-memory map for persistence.
+ * - In production you'd replace the in-memory service with a database-backed one and
+ *   the mock broker with a real message broker publisher.
+ */
+
+import { BrokerPublisher } from '@event-bus/types/worlflow-event-emitter.interface';
+import { Injectable, Logger, Module } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Entity as EntityParam, OnEvent, Payload } from '@workflow/decorators/on-event.decorator';
+import { Workflow } from '@workflow/decorators/workflow.decorator';
+import { IEntity as EntityInterface, IEntity } from '@workflow/types/entity.interface';
+import { WorkflowController } from '@workflow/types/workflow-controller.interface';
+import { WorkflowModule } from '@workflow/workflow.module';
+import { randomUUID } from 'node:crypto';
+
+/**
+ * Order domain types
+ */
+export enum OrderState {
+  CREATED = 'created',
+  PROCESSING = 'processing',
+  SHIPPED = 'shipped',
+  CANCELLED = 'cancelled',
+  FAILED = 'failed',
+}
+
+export enum OrderEvent {
+  CREATED = 'order.created',
+  PROCESSING = 'order.processing',
+  SHIPPED = 'order.shipped',
+  CANCELLED = 'order.cancelled',
+  FAILED = 'order.failed',
+}
+
+export interface Order {
+  id: string;
+  item: string;
+  quantity: number;
+  price: number;
+  status: OrderState;
+}
+
+@Injectable()
+export class OrderEntityService implements EntityInterface<Order, OrderState> {
+  private store = new Map<string, Order>();
+
+  async create(): Promise<Order> {
+    const order: Order = {
+      id: randomUUID(),
+      quantity: 0,
+      item: '',
+      price: 0,
+      status: OrderState.CREATED,
+    };
+    this.store.set(order.id, order);
+    return order;
+  }
+
+  async load(urn: string | number): Promise<Order | null> {
+    const key = String(urn);
+    return this.store.has(key) ? { ...this.store.get(key)! } : null;
+  }
+
+  async update(order: Order, status: OrderState): Promise<Order> {
+    const id = String(order.id);
+    // defensive copy
+    const updated: Order = { ...order, status };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  status(order: Order): OrderState {
+    return order.status;
+  }
+
+  urn(order: Order): string | number {
+    return order.id;
+  }
+}
+
+/**
+ * Minimal mock broker publisher that logs emitted workflow events.
+ */
+@Injectable()
+export class MockBrokerPublisher implements BrokerPublisher {
+  private readonly logger = new Logger(MockBrokerPublisher.name);
+
+  async emit<T>(topic: string, payload: { key: string | number; payload?: T | object | string }): Promise<void> {
+    this.logger.log(
+      `MockBrokerPublisher emit -> topic: ${topic} key: ${payload.key} payload: ${JSON.stringify(payload.payload)}`,
+    );
+    // In real implementation, push to Kafka/SQS/etc.
+    return;
+  }
+}
+
+@Workflow<Order, OrderEvent, OrderState>({
+  name: 'OrderWorkflow',
+  states: {
+    finals: [OrderState.SHIPPED, OrderState.CANCELLED],
+    idles: [OrderState.CREATED],
+    failed: OrderState.FAILED,
+  },
+  transitions: [
+    {
+      event: OrderEvent.CREATED,
+      from: [OrderState.CREATED],
+      to: OrderState.PROCESSING,
+      conditions: [], // could add validation conditions
+    },
+    {
+      event: OrderEvent.PROCESSING,
+      from: [OrderState.PROCESSING],
+      to: OrderState.SHIPPED,
+    },
+    {
+      event: OrderEvent.CANCELLED,
+      from: [OrderState.CREATED, OrderState.PROCESSING],
+      to: OrderState.CANCELLED,
+    },
+  ],
+  fallback: async (entity: Order, event: string, payload?: any) => {
+    // Default fallback: log and return entity unchanged
+    // In a real system you might persist an audit entry or schedule a retry
+    // Keeping it minimal here:
+    // Note: the actual `Workflow` decorator will log using the workflow controller logger
+    return entity;
+  },
+})
+export class OrderWorkflow implements WorkflowController<Order, OrderState> {
+  public logger = new Logger(OrderWorkflow.name);
+
+  constructor(
+    public readonly entityService: IEntity<Order, OrderState>,
+    public readonly eventEmitter: EventEmitter2,
+    public readonly brokerPublisher: BrokerPublisher,
+  ) {}
+
+  @OnEvent<Order, OrderState>(OrderEvent.CREATED)
+  async handleOrderCreated(@EntityParam() order: Order, @Payload() payload: { source?: string }) {
+    this.logger.log(`handleOrderCreated called for order ${order.id}, source=${payload?.source}`);
+    // example action: charge payment, validate items, etc.
+    // We'll just log and return some payload used by next transition checks
+    return { processedAt: new Date().toISOString() };
+  }
+
+  @OnEvent<Order, OrderState>(OrderEvent.SHIPPED)
+  async handleOrderProcessed(@EntityParam() order: Order, @Payload() payload?: any) {
+    this.logger.log(`handleOrderProcessed called for order ${order.id} payload=${JSON.stringify(payload)}`);
+    // perhaps notify customer, create shipment, etc.
+    // Optionally publish to broker:
+    await this.brokerPublisher.emit('order.shipment', { key: order.id, payload: { orderId: order.id } });
+    return { shippedAt: new Date().toISOString() };
+  }
+
+  @OnEvent<Order, OrderState>(OrderEvent.CANCELLED)
+  async handleOrderCancel(@EntityParam() order: Order, @Payload() payload?: any) {
+    this.logger.log(`handleOrderCancel called for order ${order.id}`);
+    // release reserved inventory, refund, etc.
+    return { cancelledAt: new Date().toISOString() };
+  }
+}
+
+@Module({
+  imports: [
+    WorkflowModule.register({
+      providers: [MockBrokerPublisher, OrderWorkflow],
+    }),
+  ],
+  providers: [],
+  exports: [],
+})
+export class OrderModule {}
