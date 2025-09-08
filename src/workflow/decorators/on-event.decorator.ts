@@ -38,32 +38,36 @@ export function Payload<P>(dto?: P): ParameterDecorator {
 // 3. Task schedule -> WAIT methods
 export const OnEvent =
   <T, State = string>(event: string) =>
-  (target: WorkflowController<T, State>, propertyKey: string, descriptor: PropertyDescriptor) => {
+  (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
+    const instance = target.constructor as WorkflowController<T, State>;
     const workflowDefinition: WorkflowDefinition<T, string, State> = Reflect.getMetadata(
       'workflow:definition',
       target.constructor,
     );
 
     async function loadAndValidateEntity(urn: string | number): Promise<T> {
-      const entity = await target.entityService.load(urn);
+      const entity = await instance.entityService.load(urn);
 
       if (!entity) {
-        target.logger.error(`Element not found`, urn);
+        instance.logger.error(`Element not found`, urn);
         throw new BadRequestException(`Entity not found`, String(urn));
       }
 
-      const entityStatus = target.entityService.status(entity);
+      const entityStatus = instance.entityService.status(entity);
       if (workflowDefinition.states.finals.includes(entityStatus)) {
-        target.logger.warn(`Entity: ${urn} is in a final status. Accepting transitions due to a retry mechanism.`, urn);
+        instance.logger.warn(
+          `Entity: ${urn} is in a final status. Accepting transitions due to a retry mechanism.`,
+          urn,
+        );
       }
 
       return entity;
     }
 
     function findValidTransition<P>(entity: T, payload: P): TransitionEvent<T, string, State> | null {
-      const currentStatus = target.entityService.status(entity);
-      const urn = target.entityService.urn(entity);
+      const currentStatus = instance.entityService.status(entity);
+      const urn = instance.entityService.urn(entity);
       const possibleNextTransitionSet = new Set<State>();
 
       const possibleTransitions = workflowDefinition.transitions
@@ -81,7 +85,7 @@ export const OnEvent =
         });
 
       if (possibleTransitions.length === 0) {
-        target.logger.warn(`There's no valid transition from ${currentStatus} or the condition is not met.`, urn);
+        instance.logger.warn(`There's no valid transition from ${currentStatus} or the condition is not met.`, urn);
         return null;
       }
 
@@ -97,7 +101,7 @@ export const OnEvent =
     }
 
     function isInIdleStatus(entity: T): boolean {
-      const status = target.entityService.status(entity);
+      const status = instance.entityService.status(entity);
       if (!status) {
         throw new Error('Entity status is not defined. Unable to determine if the entity is idle or not.');
       }
@@ -106,16 +110,16 @@ export const OnEvent =
 
     descriptor.value = async function <P>(params: { urn: string | number; payload: P }) {
       const { urn, payload } = params;
-      target.logger.log(`Method ${propertyKey} is being called with arguments:`, params);
+      instance.logger.log(`Method ${propertyKey} is being called with arguments:`, params);
 
       const entity = await loadAndValidateEntity(urn);
-      const entityStatus = target.entityService.status(entity);
+      const entityStatus = instance.entityService.status(entity);
       try {
         // Find valid transition
         const transition = findValidTransition(entity, payload);
         if (!transition) {
           if (workflowDefinition.fallback) {
-            target.logger.log(`Falling back to the default transition`, urn);
+            instance.logger.log(`Falling back to the default transition`, urn);
             await workflowDefinition.fallback(entity, event, payload);
           }
           throw new BadRequestException(
@@ -127,7 +131,7 @@ export const OnEvent =
           // TODO: handle logic for idle status
         }
 
-        target.logger.log(`Executing transition from ${entityStatus} to ${transition.to}`, urn);
+        instance.logger.log(`Executing transition from ${entityStatus} to ${transition.to}`, urn);
 
         // Process event actions
         let eventActionResult = null;
@@ -152,28 +156,28 @@ export const OnEvent =
           // NOTE: user logic
           eventActionResult = await originalMethod.apply(this, args);
         } catch (e) {
-          await target.entityService.update(entity, workflowDefinition.states.failed);
-          target.logger.log(`Transition failed. Setting status to failed.`, urn);
+          await instance.entityService.update(entity, workflowDefinition.states.failed);
+          instance.logger.log(`Transition failed. Setting status to failed.`, urn);
           throw e;
         }
 
         // Update entity status
-        const updatedEntity = await target.entityService.update(entity, transition.to);
-        target.logger.log(`Element transitioned from ${entityStatus} to ${transition.to}`, urn);
+        const updatedEntity = await instance.entityService.update(entity, transition.to);
+        instance.logger.log(`Element transitioned from ${entityStatus} to ${transition.to}`, urn);
 
         // Get next event for automatic transitions
         const nextTransition = findValidTransition(updatedEntity, eventActionResult);
         if (!nextTransition) {
-          target.logger.warn('This is the last event, no more state transition');
+          instance.logger.warn('This is the last event, no more state transition');
           return;
         }
 
         const nextEvent = nextTransition.event;
-        target.logger.log(
-          `Next event: ${event ?? 'none'} Next status: ${target.entityService.status(updatedEntity)}`,
+        instance.logger.log(
+          `Next event: ${event ?? 'none'} Next status: ${instance.entityService.status(updatedEntity)}`,
           urn,
         );
-        target.eventEmitter.emit(nextEvent, { urn, payload });
+        instance.eventEmitter.emit(nextEvent, { urn, payload });
       } catch (e) {
         // TODO: add error handler
       }

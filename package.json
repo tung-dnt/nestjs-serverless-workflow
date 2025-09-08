@@ -4,14 +4,6 @@
   "description": "Workflow and State Machines for NestJS",
   "license": "MIT",
   "author": "Thomas Do (tung-dnt)",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "readme": "README.md",
-  "private": false,
-  "files": [
-    "./dist/**"
-  ],
   "scripts": {
     "prebuild": "npm run clean",
     "build": "tsc -p tsconfig.build.json",

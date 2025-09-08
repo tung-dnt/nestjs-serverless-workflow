@@ -13,6 +13,7 @@ import { TransitionEvent } from './transition-event.interface';
  */
 export interface WorkflowDefinition<T, Event, State> {
   name: string;
+  polling?: boolean;
   states: {
     finals: State[];
     idles: State[];

@@ -10,6 +10,7 @@ export class WorkflowModule {
       module: WorkflowModule,
       imports,
       providers: [...(options.providers ?? [])],
+      exports: [...(options.providers ?? []), EventEmitterModule],
     };
   }
 }
