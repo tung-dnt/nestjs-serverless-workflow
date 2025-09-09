@@ -83,7 +83,11 @@ export const OnEvent =
       }
 
       // Helper: find valid transition using runtime instance
-      function findValidTransition<P>(entity: T, payload: P): TransitionEvent<T, string, State> | null {
+      function findValidTransition<P>(
+        entity: T,
+        payload: P,
+        options?: { skipEventCheck?: boolean },
+      ): TransitionEvent<T, string, State> | null {
         const currentStatus = instance.entityService.status(entity);
         const urn = instance.entityService.urn(entity);
         const possibleNextTransitionSet = new Set<State>();
@@ -93,13 +97,14 @@ export const OnEvent =
           .filter((transition) => {
             const events = Array.isArray(transition.event) ? transition.event : [transition.event];
             const states = Array.isArray(transition.from) ? transition.from : [transition.from];
-            return events.includes(event) && states.includes(currentStatus);
+            return (options?.skipEventCheck ? true : events.includes(event)) && states.includes(currentStatus);
           })
           // Condition checking
           .filter(({ conditions, to }) => {
+            if (conditions && conditions.some((condition) => !condition(entity, payload))) return false;
+
             possibleNextTransitionSet.add(to);
-            if (!conditions) return true;
-            return conditions.every((condition) => condition(entity, payload));
+            return true;
           });
 
         if (possibleTransitions.length === 0) {
@@ -127,7 +132,7 @@ export const OnEvent =
         return workflowDefinition.states.idles.includes(status);
       }
 
-      // Begin wrapper logic
+      // ========================= BEGIN wrapper logic =========================
       const { urn, payload } = params;
       instance.logger.log(`Method ${propertyKey} is being called with arguments:`, params);
 
@@ -185,9 +190,9 @@ export const OnEvent =
         instance.logger.log(`Element transitioned from ${entityStatus} to ${transition.to}`, urn);
 
         // Get next event for automatic transitions
-        const nextTransition = findValidTransition(updatedEntity, eventActionResult);
+        const nextTransition = findValidTransition(updatedEntity, eventActionResult, { skipEventCheck: true });
         if (!nextTransition) {
-          instance.logger.warn('This is the last event, no more state transition');
+          instance.logger.warn('No state transition found');
           return;
         }
 

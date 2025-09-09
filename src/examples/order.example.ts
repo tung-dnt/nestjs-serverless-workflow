@@ -63,7 +63,7 @@ export class OrderEntityService implements EntityInterface<Order, OrderState> {
       price: 0,
       status: OrderState.CREATED,
     };
-    this.store.set(order.id, order);
+    this.store.set(String(order.id), order);
     return order;
   }
 
@@ -128,6 +128,7 @@ export class MockBrokerPublisher implements BrokerPublisher {
       event: OrderEvent.CANCELLED,
       from: [OrderState.CREATED, OrderState.PROCESSING],
       to: OrderState.CANCELLED,
+      conditions: [(entity) => false], // can't cancel if already shipped
     },
   ],
   fallback: async (entity: Order, event: string, payload?: any) => {
