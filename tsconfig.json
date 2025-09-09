@@ -22,7 +22,7 @@
     "noFallthroughCasesInSwitch": true,
     "composite": true, // required for project references
     "paths": {
-      "@*": ["./src/*"]
+      "@/*": ["./src/*"]
     }
   }
 }

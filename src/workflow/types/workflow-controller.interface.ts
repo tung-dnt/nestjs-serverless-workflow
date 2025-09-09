@@ -1,4 +1,4 @@
-import { BrokerPublisher } from '@event-bus/types/worlflow-event-emitter.interface';
+import { BrokerPublisher } from '@/event-bus/types/worlflow-event-emitter.interface';
 import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IEntity } from './entity.interface';

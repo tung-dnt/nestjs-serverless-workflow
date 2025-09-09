@@ -421,7 +421,7 @@ npm install @nestjs-serverless-workflow
 - **TypeScript**: ES2022 target with decorators enabled
 - **Jest**: Testing framework with ts-jest transformer
 - **ESLint**: Code linting with Prettier integration
-- **Path Mapping**: `@this/*` for internal imports
+- **Path Mapping**: `@/*` for internal imports
 
 ## API Reference
 

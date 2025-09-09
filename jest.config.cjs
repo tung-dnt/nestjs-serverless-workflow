@@ -5,14 +5,13 @@
 // };
 
 module.exports = {
-    roots: ['<rootDir>/test'],
-    transform: {
-      '^.+\\.tsx?$': 'ts-jest',
-    },
-    testRegex: '(/__test__/.*|(\\.|/)(test|spec))\\.tsx?$',
-    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-    moduleNameMapper: {
-      '@this/(.*)': '<rootDir>/src/$1',
-    },
-  };
-  
+  roots: ['<rootDir>/test'],
+  transform: {
+    '^.+\\.tsx?$': 'ts-jest',
+  },
+  testRegex: '(/__test__/.*|(\\.|/)(test|spec))\\.tsx?$',
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  moduleNameMapper: {
+    '@/(.*)': '<rootDir>/src/$1',
+  },
+};

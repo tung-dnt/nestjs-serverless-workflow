@@ -1,4 +1,4 @@
-import { WorkflowDefinition } from '@workflow/types/workflow-definition.interface';
+import { WorkflowDefinition } from '@/workflow/types/workflow-definition.interface';
 
 const WORKFLOW_METADATA_KEY = 'workflow:definition';
 

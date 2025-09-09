@@ -14,14 +14,10 @@
  *   the mock broker with a real message broker publisher.
  */
 
-import { BrokerPublisher } from '@event-bus/types/worlflow-event-emitter.interface';
+import { BrokerPublisher } from '@/event-bus/types/worlflow-event-emitter.interface';
+import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowController, WorkflowModule } from '@/workflow';
 import { Controller, Injectable, Logger, Module, Post } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Entity as EntityParam, OnEvent, Payload } from '@workflow/decorators/on-event.decorator';
-import { Workflow } from '@workflow/decorators/workflow.decorator';
-import { IEntity as EntityInterface, IEntity } from '@workflow/types/entity.interface';
-import { WorkflowController } from '@workflow/types/workflow-controller.interface';
-import { WorkflowModule } from '@workflow/workflow.module';
 import { randomUUID } from 'node:crypto';
 
 /**
@@ -52,7 +48,7 @@ export interface Order {
 }
 
 @Injectable()
-export class OrderEntityService implements EntityInterface<Order, OrderState> {
+export class OrderEntityService implements IEntity<Order, OrderState> {
   private store = new Map<string, Order>();
 
   async create(): Promise<Order> {
@@ -146,10 +142,10 @@ export class OrderWorkflow implements WorkflowController<Order, OrderState> {
     public readonly entityService: OrderEntityService,
     public readonly eventEmitter: EventEmitter2,
     public readonly brokerPublisher: MockBrokerPublisher,
-  ) {}
+  ) { }
 
   @OnEvent<Order, OrderState>(OrderEvent.CREATED)
-  async handleOrderCreated(@EntityParam() order: Order, @Payload() payload: any) {
+  async handleOrderCreated(@Entity() order: Order, @Payload() payload: any) {
     this.logger.log(`handleOrderCreated called for order ${order.id}, source=${JSON.stringify(payload)}`);
     // example action: charge payment, validate items, etc.
     // We'll just log and return some payload used by next transition checks
@@ -157,14 +153,14 @@ export class OrderWorkflow implements WorkflowController<Order, OrderState> {
   }
 
   @OnEvent<Order, OrderState>(OrderEvent.PROCESSING)
-  async handleOrderProcessing(@EntityParam() order: Order, @Payload() payload: any) {
+  async handleOrderProcessing(@Entity() order: Order, @Payload() payload: any) {
     this.logger.log(`handleOrderProcessing called for order ${order.id} payload=${JSON.stringify(payload)}`);
     // example action: prepare shipment, notify warehouse, etc.
     return { processingAt: new Date().toISOString() };
   }
 
   @OnEvent<Order, OrderState>(OrderEvent.SHIPPED)
-  async handleOrderProcessed(@EntityParam() order: Order, @Payload() payload: any) {
+  async handleOrderProcessed(@Entity() order: Order, @Payload() payload: any) {
     this.logger.log(`handleOrderProcessed called for order ${order.id} payload=${JSON.stringify(payload)}`);
     // perhaps notify customer, create shipment, etc.
     // Optionally publish to broker:
@@ -173,7 +169,7 @@ export class OrderWorkflow implements WorkflowController<Order, OrderState> {
   }
 
   @OnEvent<Order, OrderState>(OrderEvent.CANCELLED)
-  async handleOrderCancel(@EntityParam() order: Order, @Payload() payload: any) {
+  async handleOrderCancel(@Entity() order: Order, @Payload() payload: any) {
     this.logger.log(`handleOrderCancel called for order ${order.id}`);
     // release reserved inventory, refund, etc.
     return { cancelledAt: new Date().toISOString() };
@@ -185,7 +181,7 @@ export class OrderController {
   constructor(
     private readonly orderEntityService: OrderEntityService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   @Post('orders')
   async createOrder(): Promise<void> {
@@ -202,4 +198,4 @@ export class OrderController {
   ],
   controllers: [OrderController],
 })
-export class OrderModule {}
+export class OrderModule { }
