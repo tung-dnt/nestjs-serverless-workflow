@@ -1,12 +1,12 @@
 import { Global, Injectable, Module } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkflowModule, WorkflowService } from '@this/index';
-import { WorkflowAction } from '@this/workflow/action.class.decorator';
-import { OnEvent } from '@this/workflow/action.event.method.decorator';
-import { OnStatusChanged } from '@this/workflow/action.status.method.decorator';
-import { WorkflowDefinition } from '@this/workflow/definition'; // Adjust path if needed
-import { EntityService } from '@this/workflow/entity.service';
+import { WorkflowModule, WorkflowService } from '@/workflow';
+import { WorkflowAction } from '@/workflow/action.class.decorator';
+import { OnEvent } from '@/workflow/action.event.method.decorator';
+import { OnStatusChanged } from '@/workflow/action.status.method.decorator';
+import { WorkflowDefinition } from '@/workflow/definition';
+import { EntityService } from '@/workflow/entity.service';
 
 export enum OrderEvent {
   Create = 'order.create',
@@ -48,7 +48,7 @@ class OrderEntityService implements EntityService<Order, OrderStatus> {
   constructor(
     private moduleRef: ModuleRef,
     private readonly repository: OrdersRepository,
-  ) { }
+  ) {}
 
   new(): Promise<Order> {
     return Promise.resolve(new Order());
@@ -69,7 +69,7 @@ class OrderEntityService implements EntityService<Order, OrderStatus> {
 }
 
 @Injectable()
-export class OrderActions { }
+export class OrderActions {}
 
 const TestWorkflowDefinition = (entity: Order) => {
   const definition: WorkflowDefinition<Order, any, OrderEvent, OrderStatus> = {
@@ -137,7 +137,7 @@ const TestWorkflowDefinition = (entity: Order) => {
   providers: [OrderActions, OrdersRepository],
   exports: [OrdersRepository],
 })
-export class CustomModel { }
+export class CustomModel {}
 
 describe('Entity Service dependant Order Workflow', () => {
   beforeEach(async () => {

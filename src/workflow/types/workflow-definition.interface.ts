@@ -13,13 +13,17 @@ import { TransitionEvent } from './transition-event.interface';
  */
 export interface WorkflowDefinition<T, Event, State> {
   name: string;
-  polling?: boolean;
+  polling?: boolean; // For normal server deployment, default to true. For serverless (AWS Lambda), default to false
   states: {
     finals: State[];
     idles: State[];
     failed: State;
   };
   transitions: TransitionEvent<T, Event, State>[];
-  fallback?: <P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<T>;
   conditions?: (<P>(entity: T, payload?: P | T | object | string) => boolean)[];
+  fallback?: <P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<T>;
+  /*
+   * When serverless function about to timeout, register thsis callback to checkpoint current entity state
+   * */
+  checkpointCallbacks?: (<P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<any>)[];
 }

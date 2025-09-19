@@ -1,4 +1,4 @@
-import { WorkflowDefinition } from '@this/workflow/definition'; // Adjust path if needed
+import { WorkflowDefinition } from '@/workflow';
 
 export enum OrderEvent {
   Create = 'order.create',
@@ -38,7 +38,8 @@ describe('Workflow Definition Tests', () => {
           OrderStatus.Completed,
           OrderStatus.Failed,
           OrderStatus.Canceled,
-          OrderStatus.Error,],
+          OrderStatus.Error,
+        ],
         failed: OrderStatus.Failed,
       },
       transitions: [
@@ -89,8 +90,6 @@ describe('Workflow Definition Tests', () => {
         },
       },
     };
-
-
   });
 
   it('should able to define with actions and conditions', async () => {

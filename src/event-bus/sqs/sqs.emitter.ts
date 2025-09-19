@@ -1,5 +1,5 @@
-import { BrokerPublisher } from '../types/worlflow-event-emitter.interface';
+import { BrokerPublisher } from '../types/broker-publisher.interface';
 
 export class SqsEmitter implements BrokerPublisher {
-  async emit<T>(topic: string, payload: any): Promise<void> {}
+  async emit<T>(payload: any): Promise<void> {}
 }

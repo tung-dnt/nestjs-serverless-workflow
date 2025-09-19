@@ -1,4 +1,5 @@
 export interface WorkflowEvent<T = any> {
-  key: string | number;
+  topic: string;
+  urn: string | number;
   payload?: T | object | string;
 }

@@ -1,9 +1,9 @@
-import Stripe from 'stripe';
-import { EntityService, WorkflowDefinition, WorkflowModule, WorkflowService  } from '@this/index';
+import { WorkflowAction } from '@/workflow/action.class.decorator';
+import { OnEvent } from '@/workflow/action.event.method.decorator';
 import { Global, Injectable, Module } from '@nestjs/common';
-import { WorkflowAction } from '@workflow/action.class.decorator';
-import { OnEvent } from '@workflow/action.event.method.decorator';
 import { Test, TestingModule } from '@nestjs/testing';
+import { EntityService, WorkflowDefinition, WorkflowModule, WorkflowService } from '@/workflow';
+import Stripe from 'stripe';
 
 export class Subscription {
   email: string;
@@ -25,7 +25,6 @@ let repository: Subscription[] = [];
 
 @Injectable()
 class SubscriptionsRepository extends EntityService<Subscription, SubscriptionStatus> {
-
   clear() {
     repository = [];
   }
@@ -59,11 +58,11 @@ class SubscriptionsRepository extends EntityService<Subscription, SubscriptionSt
     return Promise.resolve(e);
   }
   load(urn: string): Promise<Subscription | null> {
-   const e = repository.find((s) => s.subscriptionId === urn);
-   if (!e) {
-    throw new Error(`Subscription not found: ${urn}`);
-   }
-   return Promise.resolve(e);
+    const e = repository.find((s) => s.subscriptionId === urn);
+    if (!e) {
+      throw new Error(`Subscription not found: ${urn}`);
+    }
+    return Promise.resolve(e);
   }
   status(entity: Subscription): SubscriptionStatus {
     return entity.subscriptionStatus as SubscriptionStatus;
@@ -114,7 +113,7 @@ enum SubscriptionStatus {
 @WorkflowAction()
 @Injectable()
 export class StripeSubscriptionsActions {
-  constructor() { }
+  constructor() {}
 
   @OnEvent({ event: StripeSubscriptionEvent.Created, order: 1 })
   async onSubscriptionCreated(params: { entity: Subscription; payload: Stripe.Subscription }): Promise<Subscription> {
@@ -139,7 +138,10 @@ export class StripeSubscriptionsActions {
   }
 
   @OnEvent({ event: StripeSubscriptionEvent.PaymentSucceeded, order: 1 })
-  async onSubscriptionPaymentSucceeded(params: { entity: Subscription; payload: Stripe.Invoice }): Promise<Subscription> {
+  async onSubscriptionPaymentSucceeded(params: {
+    entity: Subscription;
+    payload: Stripe.Invoice;
+  }): Promise<Subscription> {
     const { entity, payload } = params;
     // Logic for successful payment
     return entity;
@@ -160,8 +162,15 @@ const SubscriptionWorkflowDefinition: WorkflowDefinition<
   SubscriptionStatus
 > = {
   states: {
-    finals:[SubscriptionStatus.Active, SubscriptionStatus.Canceled, SubscriptionStatus.Expired],
-    idles: [SubscriptionStatus.Pending, SubscriptionStatus.Created, SubscriptionStatus.Active, SubscriptionStatus.Overdue, SubscriptionStatus.Canceled, SubscriptionStatus.Failed],
+    finals: [SubscriptionStatus.Active, SubscriptionStatus.Canceled, SubscriptionStatus.Expired],
+    idles: [
+      SubscriptionStatus.Pending,
+      SubscriptionStatus.Created,
+      SubscriptionStatus.Active,
+      SubscriptionStatus.Overdue,
+      SubscriptionStatus.Canceled,
+      SubscriptionStatus.Failed,
+    ],
     failed: SubscriptionStatus.Failed,
   },
   entity: SubscriptionsRepository,
@@ -237,29 +246,36 @@ const SubscriptionWorkflowDefinition: WorkflowDefinition<
       ],
     }),
   ],
-  providers: [StripeSubscriptionsActions, {
-    provide: EntityService<Subscription, SubscriptionStatus>,
-    useClass: SubscriptionsRepository,
-  },],
-  exports: [StripeSubscriptionsActions, 
+  providers: [
+    StripeSubscriptionsActions,
+    {
+      provide: EntityService<Subscription, SubscriptionStatus>,
+      useClass: SubscriptionsRepository,
+    },
+  ],
+  exports: [
+    StripeSubscriptionsActions,
     {
       provide: EntityService<Subscription, SubscriptionStatus>,
       useClass: SubscriptionsRepository,
     },
   ],
 })
-export class CustomModule { }
+export class CustomModule {}
 
 describe('Stripe Subscription Workflow', () => {
   let module: TestingModule;
-  let workflowService: WorkflowService<Subscription, any, SubscriptionEvent | StripeSubscriptionEvent, SubscriptionStatus>;
+  let workflowService: WorkflowService<
+    Subscription,
+    any,
+    SubscriptionEvent | StripeSubscriptionEvent,
+    SubscriptionStatus
+  >;
   let subscriptionsActions: StripeSubscriptionsActions;
   let repository: SubscriptionsRepository;
   let testSubscription: Subscription;
 
   beforeEach(async () => {
-    
-    
     module = await Test.createTestingModule({
       imports: [CustomModule],
     }).compile();
@@ -267,10 +283,10 @@ describe('Stripe Subscription Workflow', () => {
     workflowService = module.get('SubscriptionsWorkflow');
     subscriptionsActions = module.get(StripeSubscriptionsActions);
     repository = module.get(EntityService<Subscription, SubscriptionStatus>);
-    
+
     // Initialize the workflow service
     await workflowService.onModuleInit();
-    
+
     // Clear repository before each test
     repository.clear();
 
@@ -290,7 +306,7 @@ describe('Stripe Subscription Workflow', () => {
       phoneNumber: '1234567890',
       status: '',
     };
-    
+
     // Add to repository
     repository.update(testSubscription, SubscriptionStatus.Pending);
   });
@@ -304,52 +320,52 @@ describe('Stripe Subscription Workflow', () => {
   describe('StripeSubscriptionsActions', () => {
     it('should handle subscription created event', async () => {
       const stripeSubscription = { id: 'sub_new123', status: 'active' } as Stripe.Subscription;
-      const result = await subscriptionsActions.onSubscriptionCreated({ 
-        entity: testSubscription, 
-        payload: stripeSubscription 
+      const result = await subscriptionsActions.onSubscriptionCreated({
+        entity: testSubscription,
+        payload: stripeSubscription,
       });
-      
+
       expect(result.subscriptionId).toBe('sub_new123');
       expect(result.subscriptionStatus).toBe('active');
     });
 
     it('should handle subscription updated event', async () => {
       const stripeSubscription = { id: 'sub_123456', status: 'past_due' } as Stripe.Subscription;
-      const result = await subscriptionsActions.onSubscriptionUpdated({ 
-        entity: testSubscription, 
-        payload: stripeSubscription 
+      const result = await subscriptionsActions.onSubscriptionUpdated({
+        entity: testSubscription,
+        payload: stripeSubscription,
       });
-      
+
       expect(result.subscriptionStatus).toBe('past_due');
     });
 
     it('should handle subscription deleted event', async () => {
       const stripeSubscription = { id: 'sub_123456' } as Stripe.Subscription;
-      const result = await subscriptionsActions.onSubscriptionDeleted({ 
-        entity: testSubscription, 
-        payload: stripeSubscription 
+      const result = await subscriptionsActions.onSubscriptionDeleted({
+        entity: testSubscription,
+        payload: stripeSubscription,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Canceled);
     });
 
     it('should handle payment succeeded event', async () => {
       const stripeInvoice = { id: 'inv_123' } as Stripe.Invoice;
-      const result = await subscriptionsActions.onSubscriptionPaymentSucceeded({ 
-        entity: testSubscription, 
-        payload: stripeInvoice 
+      const result = await subscriptionsActions.onSubscriptionPaymentSucceeded({
+        entity: testSubscription,
+        payload: stripeInvoice,
       });
-      
+
       expect(result).toBeDefined();
     });
 
     it('should handle payment failed event', async () => {
       const stripeInvoice = { id: 'inv_123' } as Stripe.Invoice;
-      const result = await subscriptionsActions.onSubscriptionPaymentFailed({ 
-        entity: testSubscription, 
-        payload: stripeInvoice 
+      const result = await subscriptionsActions.onSubscriptionPaymentFailed({
+        entity: testSubscription,
+        payload: stripeInvoice,
       });
-      
+
       expect(result).toBeDefined();
     });
   });
@@ -359,109 +375,109 @@ describe('Stripe Subscription Workflow', () => {
     it('should transition from Pending to Created', async () => {
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Create
+        event: SubscriptionEvent.Create,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Created);
     });
 
     it('should transition from Created to Active', async () => {
       // First transition to Created
       testSubscription.subscriptionStatus = SubscriptionStatus.Created;
-      
+
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Activate
+        event: SubscriptionEvent.Activate,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Active);
     });
 
     it('should transition from Active to Canceled due to deactivation', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Active;
-      
+
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Deactivate
+        event: SubscriptionEvent.Deactivate,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Canceled);
     });
 
     it('should transition from Active to Overdue on payment failure', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Active;
-      
+
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: StripeSubscriptionEvent.PaymentFailed
+        event: StripeSubscriptionEvent.PaymentFailed,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Overdue);
     });
 
     it('should transition from Overdue to Active on payment success', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Overdue;
-      
+
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: StripeSubscriptionEvent.PaymentSucceeded
+        event: StripeSubscriptionEvent.PaymentSucceeded,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Active);
     });
 
     it('should transition from Overdue to Failed on repeated payment failure', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Overdue;
-      
+
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: StripeSubscriptionEvent.PaymentFailed
+        event: StripeSubscriptionEvent.PaymentFailed,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Failed);
     });
 
     it('should transition from Active to Canceled', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Active;
-      
+
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Cancel
+        event: SubscriptionEvent.Cancel,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Canceled);
     });
 
     it('should transition from Overdue to Canceled', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Overdue;
-      
+
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Cancel
+        event: SubscriptionEvent.Cancel,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Canceled);
     });
 
     it('should transition from Inactive to Canceled', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Inactive;
-      
+
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Cancel
+        event: SubscriptionEvent.Cancel,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Canceled);
     });
 
     it('should transition from Failed to Expired', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Failed;
-      
+
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Deactivate
+        event: SubscriptionEvent.Deactivate,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Expired);
     });
   });
@@ -470,56 +486,66 @@ describe('Stripe Subscription Workflow', () => {
   describe('Invalid Workflow Transitions', () => {
     it('should not transition from Pending to Active directly', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Pending;
-      
-      await expect(workflowService.emit({
-        urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Activate
-      })).rejects.toThrow();
-      
+
+      await expect(
+        workflowService.emit({
+          urn: testSubscription.subscriptionId,
+          event: SubscriptionEvent.Activate,
+        }),
+      ).rejects.toThrow();
+
       expect(testSubscription.subscriptionStatus).toBe(SubscriptionStatus.Pending);
     });
 
     it('should not transition from Pending to Canceled directly', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Pending;
-      
-      await expect(workflowService.emit({
-        urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Cancel
-      })).rejects.toThrow();
-      
+
+      await expect(
+        workflowService.emit({
+          urn: testSubscription.subscriptionId,
+          event: SubscriptionEvent.Cancel,
+        }),
+      ).rejects.toThrow();
+
       expect(testSubscription.subscriptionStatus).toBe(SubscriptionStatus.Pending);
     });
 
     it('should not transition from Created to Overdue directly', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Created;
-      
-      await expect(workflowService.emit({
-        urn: testSubscription.subscriptionId,
-        event: StripeSubscriptionEvent.PaymentFailed
-      })).rejects.toThrow();
-      
+
+      await expect(
+        workflowService.emit({
+          urn: testSubscription.subscriptionId,
+          event: StripeSubscriptionEvent.PaymentFailed,
+        }),
+      ).rejects.toThrow();
+
       expect(testSubscription.subscriptionStatus).toBe(SubscriptionStatus.Created);
     });
 
     it('should not transition from Canceled to any other state', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Canceled;
-      
-      await expect(workflowService.emit({
-        urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Activate
-      })).rejects.toThrow();
-      
+
+      await expect(
+        workflowService.emit({
+          urn: testSubscription.subscriptionId,
+          event: SubscriptionEvent.Activate,
+        }),
+      ).rejects.toThrow();
+
       expect(testSubscription.subscriptionStatus).toBe(SubscriptionStatus.Canceled);
     });
 
     it('should not transition from Expired to any other state', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Expired;
-      
-      await expect(workflowService.emit({
-        urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Activate
-      })).rejects.toThrow();
-      
+
+      await expect(
+        workflowService.emit({
+          urn: testSubscription.subscriptionId,
+          event: SubscriptionEvent.Activate,
+        }),
+      ).rejects.toThrow();
+
       expect(testSubscription.subscriptionStatus).toBe(SubscriptionStatus.Expired);
     });
   });
@@ -528,78 +554,78 @@ describe('Stripe Subscription Workflow', () => {
   describe('Complex Transition Sequences', () => {
     it('should handle full subscription lifecycle: Pending -> Created -> Active -> Overdue -> Active -> Canceled', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Pending;
-      
+
       // Pending to Created
       let result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Create
+        event: SubscriptionEvent.Create,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Created);
-      
+
       // Created to Active
       result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Activate
+        event: SubscriptionEvent.Activate,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Active);
-      
+
       // Active to Overdue
       result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: StripeSubscriptionEvent.PaymentFailed
+        event: StripeSubscriptionEvent.PaymentFailed,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Overdue);
-      
+
       // Overdue to Active
       result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: StripeSubscriptionEvent.PaymentSucceeded
+        event: StripeSubscriptionEvent.PaymentSucceeded,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Active);
-      
+
       // Active to Canceled
       result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Cancel
+        event: SubscriptionEvent.Cancel,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Canceled);
     });
 
     it('should handle failed subscription lifecycle: Pending -> Created -> Active -> Overdue -> Failed -> Expired', async () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Pending;
-      
+
       // Pending to Created
       let result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Create
+        event: SubscriptionEvent.Create,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Created);
-      
+
       // Created to Active
       result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Activate
+        event: SubscriptionEvent.Activate,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Active);
-      
+
       // Active to Overdue
       result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: StripeSubscriptionEvent.PaymentFailed
+        event: StripeSubscriptionEvent.PaymentFailed,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Overdue);
-      
+
       // Overdue to Failed
       result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: StripeSubscriptionEvent.PaymentFailed
+        event: StripeSubscriptionEvent.PaymentFailed,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Failed);
-      
+
       // Failed to Expired
       result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Deactivate
+        event: SubscriptionEvent.Deactivate,
       });
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Expired);
     });
@@ -614,23 +640,23 @@ describe('Stripe Subscription Workflow', () => {
           object: {
             id: 'sub_webhook123',
             status: 'active',
-            customer: 'cus_webhook123'
-          }
-        }
+            customer: 'cus_webhook123',
+          },
+        },
       } as any;
-      
+
       // Create a new subscription for this test
       const newSubscription = await repository.new();
       newSubscription.subscriptionId = 'sub_webhook123';
       repository.update(newSubscription, SubscriptionStatus.Pending);
-      
+
       // Process the webhook
       const result = await workflowService.emit({
         urn: 'sub_webhook123',
         event: StripeSubscriptionEvent.Created,
-        payload: stripeEvent.data.object
+        payload: stripeEvent.data.object,
       });
-      
+
       expect(result.subscriptionId).toBe('sub_webhook123');
       expect(result.subscriptionStatus).toBe('active');
     });
@@ -641,20 +667,20 @@ describe('Stripe Subscription Workflow', () => {
         data: {
           object: {
             id: testSubscription.subscriptionId,
-            status: 'past_due'
-          }
-        }
+            status: 'past_due',
+          },
+        },
       } as any;
-      
+
       testSubscription.subscriptionStatus = SubscriptionStatus.Active;
-      
+
       // Process the webhook
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
         event: StripeSubscriptionEvent.Updated,
-        payload: stripeEvent.data.object
+        payload: stripeEvent.data.object,
       });
-      
+
       expect(result.subscriptionStatus).toBe('overdue');
     });
 
@@ -664,20 +690,20 @@ describe('Stripe Subscription Workflow', () => {
         data: {
           object: {
             id: 'inv_failed123',
-            subscription: testSubscription.subscriptionId
-          }
-        }
+            subscription: testSubscription.subscriptionId,
+          },
+        },
       } as any;
-      
+
       testSubscription.subscriptionStatus = SubscriptionStatus.Active;
-      
+
       // Process the webhook
       const result = await workflowService.emit({
         urn: testSubscription.subscriptionId,
         event: StripeSubscriptionEvent.PaymentFailed,
-        payload: stripeEvent.data.object
+        payload: stripeEvent.data.object,
       });
-      
+
       expect(result.subscriptionStatus).toBe(SubscriptionStatus.Overdue);
     });
   });
@@ -685,10 +711,12 @@ describe('Stripe Subscription Workflow', () => {
   // Test error handling
   describe('Error Handling', () => {
     it('should handle non-existent subscription', async () => {
-      await expect(workflowService.emit({
-        urn: 'non-existent-id',
-        event: SubscriptionEvent.Activate
-      })).rejects.toThrow('Subscription not found: non-existent-id');
+      await expect(
+        workflowService.emit({
+          urn: 'non-existent-id',
+          event: SubscriptionEvent.Activate,
+        }),
+      ).rejects.toThrow('Subscription not found: non-existent-id');
     });
 
     it('should handle repository errors', async () => {
@@ -696,13 +724,15 @@ describe('Stripe Subscription Workflow', () => {
       jest.spyOn(repository, 'update').mockImplementationOnce(() => {
         throw new Error('Database error');
       });
-      
+
       testSubscription.subscriptionStatus = SubscriptionStatus.Pending;
-      
-      await expect(workflowService.emit({
-        urn: testSubscription.subscriptionId,
-        event: SubscriptionEvent.Create
-      })).rejects.toThrow('Database error');
+
+      await expect(
+        workflowService.emit({
+          urn: testSubscription.subscriptionId,
+          event: SubscriptionEvent.Create,
+        }),
+      ).rejects.toThrow('Database error');
     });
   });
 
@@ -710,43 +740,42 @@ describe('Stripe Subscription Workflow', () => {
   describe('Final States', () => {
     it('should recognize Active as a final state', () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Active;
-      
+
       const isFinal = SubscriptionWorkflowDefinition.states.finals.includes(
-        testSubscription.subscriptionStatus as SubscriptionStatus
+        testSubscription.subscriptionStatus as SubscriptionStatus,
       );
-      
+
       expect(isFinal).toBe(true);
     });
 
     it('should recognize Canceled as a final state', () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Canceled;
-      
+
       const isFinal = SubscriptionWorkflowDefinition.states.finals.includes(
-        testSubscription.subscriptionStatus as SubscriptionStatus
+        testSubscription.subscriptionStatus as SubscriptionStatus,
       );
-      
+
       expect(isFinal).toBe(true);
     });
 
     it('should recognize Expired as a final state', () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Expired;
-      
+
       const isFinal = SubscriptionWorkflowDefinition.states.finals.includes(
-        testSubscription.subscriptionStatus as SubscriptionStatus
+        testSubscription.subscriptionStatus as SubscriptionStatus,
       );
-      
+
       expect(isFinal).toBe(true);
     });
 
     it('should not recognize Pending as a final state', () => {
       testSubscription.subscriptionStatus = SubscriptionStatus.Pending;
-      
+
       const isFinal = SubscriptionWorkflowDefinition.states.finals.includes(
-        testSubscription.subscriptionStatus as SubscriptionStatus
+        testSubscription.subscriptionStatus as SubscriptionStatus,
       );
-      
+
       expect(isFinal).toBe(false);
     });
   });
 });
-

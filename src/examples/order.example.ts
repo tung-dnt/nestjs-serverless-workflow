@@ -14,10 +14,11 @@
  *   the mock broker with a real message broker publisher.
  */
 
-import { BrokerPublisher } from '@/event-bus/types/worlflow-event-emitter.interface';
+import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowController, WorkflowModule } from '@/workflow';
-import { Controller, Injectable, Logger, Module, Post } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CacheModule } from '@nestjs/cache-manager';
+import { Controller, Inject, Injectable, Logger, Module, Post } from '@nestjs/common';
+import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter';
 import { randomUUID } from 'node:crypto';
 
 /**
@@ -92,10 +93,9 @@ export class OrderEntityService implements IEntity<Order, OrderState> {
 export class MockBrokerPublisher implements BrokerPublisher {
   private readonly logger = new Logger(MockBrokerPublisher.name);
 
-  async emit<T>(topic: string, payload: { key: string | number; payload?: T | object | string }): Promise<void> {
-    this.logger.log(
-      `MockBrokerPublisher emit -> topic: ${topic} key: ${payload.key} payload: ${JSON.stringify(payload.payload)}`,
-    );
+  async emit<T>(payload: { topic: string; urn: string | number; payload?: T | object | string }): Promise<void> {
+    const { topic, urn, payload: payloadData } = payload;
+    this.logger.log(`MockBrokerPublisher emit -> topic: ${topic} key: ${urn} payload: ${JSON.stringify(payloadData)}`);
     // In real implementation, push to Kafka/SQS/etc.
     return;
   }
@@ -136,13 +136,13 @@ export class MockBrokerPublisher implements BrokerPublisher {
   },
 })
 export class OrderWorkflow implements WorkflowController<Order, OrderState> {
-  public logger = new Logger(OrderWorkflow.name);
+  readonly logger = new Logger(OrderWorkflow.name);
 
   constructor(
-    public readonly entityService: OrderEntityService,
-    public readonly eventEmitter: EventEmitter2,
-    public readonly brokerPublisher: MockBrokerPublisher,
-  ) { }
+    readonly entityService: OrderEntityService,
+    readonly eventEmitter: EventEmitter2,
+    readonly brokerPublisher: MockBrokerPublisher,
+  ) {}
 
   @OnEvent<Order, OrderState>(OrderEvent.CREATED)
   async handleOrderCreated(@Entity() order: Order, @Payload() payload: any) {
@@ -164,7 +164,7 @@ export class OrderWorkflow implements WorkflowController<Order, OrderState> {
     this.logger.log(`handleOrderProcessed called for order ${order.id} payload=${JSON.stringify(payload)}`);
     // perhaps notify customer, create shipment, etc.
     // Optionally publish to broker:
-    await this.brokerPublisher.emit('order.shipment', { key: order.id, payload: { orderId: order.id } });
+    await this.brokerPublisher.emit({ topic: 'order.shipment', urn: order.id, payload: { orderId: order.id } });
     return { shippedAt: new Date().toISOString() };
   }
 
@@ -181,7 +181,7 @@ export class OrderController {
   constructor(
     private readonly orderEntityService: OrderEntityService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   @Post('orders')
   async createOrder(): Promise<void> {
@@ -192,10 +192,12 @@ export class OrderController {
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot({ global: true }),
+    CacheModule.register({ isGlobal: true }),
     WorkflowModule.register({
       providers: [MockBrokerPublisher, OrderWorkflow, OrderEntityService],
     }),
   ],
   controllers: [OrderController],
 })
-export class OrderModule { }
+export class OrderModule {}

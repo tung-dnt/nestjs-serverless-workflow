@@ -1,5 +1,4 @@
-import { WorkflowDefinition } from '@this/workflow/definition'; // Adjust path if needed
-import { WorkflowService } from '@this/workflow/service';
+import { WorkflowDefinition, WorkflowService } from '@/workflow';
 
 export enum OrderEvent {
   Create = 'order.create',
@@ -28,7 +27,7 @@ export class Order {
 
 const simpleDefinition = (entity: Order) => {
   const definition: WorkflowDefinition<Order, any, OrderEvent, OrderStatus> = {
-    name: "OrderWorkflow",
+    name: 'OrderWorkflow',
     states: {
       finals: [OrderStatus.Completed, OrderStatus.Failed],
       idles: [OrderStatus.Pending, OrderStatus.Processing, OrderStatus.Completed, OrderStatus.Failed],

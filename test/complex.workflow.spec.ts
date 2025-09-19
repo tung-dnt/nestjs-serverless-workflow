@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkflowDefinition } from '@this/workflow/definition';
-import { WorkflowService  } from '@this/workflow/service';
+import { WorkflowDefinition, WorkflowService } from '@/workflow';
 import { ModuleRef } from '@nestjs/core';
 
 // Define test enums and classes
@@ -41,7 +40,7 @@ describe('Complex Workflow Transitions', () => {
   let service: WorkflowService<TestEntity, any, TestEvent, TestStatus>;
   let moduleRef: ModuleRef;
   let testEntity: TestEntity;
-  
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -56,12 +55,12 @@ describe('Complex Workflow Transitions', () => {
 
     moduleRef = module.get<ModuleRef>(ModuleRef);
     testEntity = new TestEntity('test:123', TestStatus.Draft);
-    
+
     // Create workflow definition with multiple from states and multiple events
     const definition: WorkflowDefinition<TestEntity, any, TestEvent, TestStatus> = {
       name: 'complex-workflow-test',
       states: {
-        finals:[TestStatus.Completed, TestStatus.Cancelled, TestStatus.Failed],
+        finals: [TestStatus.Completed, TestStatus.Cancelled, TestStatus.Failed],
         idles: [TestStatus.Draft, TestStatus.InReview, TestStatus.Approved, TestStatus.Rejected],
         failed: TestStatus.Failed,
       },
@@ -115,8 +114,8 @@ describe('Complex Workflow Transitions', () => {
         urn: (entity: TestEntity) => entity.urn,
       },
     };
-    
-    service = new WorkflowService(definition);
+
+    service = new WorkflowService<TestEntity, any, TestEvent, TestStatus>(definition);
     await service.onModuleInit();
   });
 
@@ -134,11 +133,11 @@ describe('Complex Workflow Transitions', () => {
 
   it('should handle multiple possible events for the same transition', async () => {
     testEntity.status = TestStatus.InProgress;
-    
+
     // Test first event
     const result1 = await service.emit({ event: TestEvent.Process, urn: 'test:123' });
     expect(result1.status).toBe(TestStatus.InReview);
-    
+
     // Reset and test second event
     testEntity.status = TestStatus.InProgress;
     const result2 = await service.emit({ event: TestEvent.Review, urn: 'test:123' });
@@ -150,12 +149,12 @@ describe('Complex Workflow Transitions', () => {
     testEntity.status = TestStatus.InReview;
     const result1 = await service.emit({ event: TestEvent.Complete, urn: 'test:123' });
     expect(result1.status).toBe(TestStatus.Completed);
-    
+
     // Test from Approved with Approve event
     testEntity.status = TestStatus.Approved;
     const result2 = await service.emit({ event: TestEvent.Approve, urn: 'test:123' });
     expect(result2.status).toBe(TestStatus.Completed);
-    
+
     // Test from InReview with Approve event
     testEntity.status = TestStatus.InReview;
     const result3 = await service.emit({ event: TestEvent.Approve, urn: 'test:123' });
@@ -168,12 +167,12 @@ describe('Complex Workflow Transitions', () => {
     testEntity.status = TestStatus.Draft;
     const result1 = await service.emit({ event: TestEvent.Cancel, urn: 'test:123' });
     expect(result1.status).toBe(TestStatus.Cancelled);
-    
+
     // Test cancel from InProgress
     testEntity.status = TestStatus.InProgress;
     const result2 = await service.emit({ event: TestEvent.Cancel, urn: 'test:123' });
     expect(result2.status).toBe(TestStatus.Cancelled);
-    
+
     // Test cancel from InReview
     testEntity.status = TestStatus.InReview;
     const result3 = await service.emit({ event: TestEvent.Cancel, urn: 'test:123' });
@@ -182,21 +181,21 @@ describe('Complex Workflow Transitions', () => {
 
   it('should throw error when no valid transition is found', async () => {
     testEntity.status = TestStatus.Completed;
-    
-    await expect(
-      service.emit({ event: TestEvent.Start, urn: 'test:123' })
-    ).rejects.toThrow(/Unable to find transition event/);
+
+    await expect(service.emit({ event: TestEvent.Start, urn: 'test:123' })).rejects.toThrow(
+      /Unable to find transition event/,
+    );
   });
 
   it('should handle complex transition paths with auto-transitions', async () => {
     // Set up a scenario where we start from Draft and should end up in Completed
     // through multiple transitions if auto-transitions are working
     testEntity.status = TestStatus.Draft;
-    
+
     // This should trigger Draft -> InProgress -> InReview -> Approved -> Completed
     // if the workflow engine correctly handles auto-transitions
     const result = await service.emit({ event: TestEvent.Start, urn: 'test:123' });
-    
+
     // The final state depends on how auto-transitions are implemented
     // At minimum, it should have moved from Draft
     expect(result.status).not.toBe(TestStatus.Draft);

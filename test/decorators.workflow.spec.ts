@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkflowModule } from '@this/index';
-import { WorkflowAction } from '@this/workflow/action.class.decorator';
-import { OnEvent } from '@this/workflow/action.event.method.decorator';
-import { OnStatusChanged } from '@this/workflow/action.status.method.decorator';
-import { WorkflowDefinition } from '@this/workflow/definition'; // Adjust path if needed
+import { WorkflowModule } from '@/workflow';
+import { WorkflowAction } from '@/workflow/action.class.decorator';
+import { OnEvent } from '@/workflow/action.event.method.decorator';
+import { OnStatusChanged } from '@/workflow/action.status.method.decorator';
+import { WorkflowDefinition } from '@/workflow/definition';
 
 export enum OrderEvent {
   Create = 'order.create',
@@ -89,7 +89,7 @@ export class FailingStatusOrderActions {
   @OnStatusChanged({ from: OrderStatus.Pending, to: OrderStatus.Processing })
   onStatusChanged(params: { entity: Order; payload: any }) {
     const { entity, payload } = params;
-    throw new Error("must be fail");
+    throw new Error('must be fail');
   }
 }
 
@@ -99,7 +99,7 @@ export class FailingButNotStatusOrderActions {
   @OnStatusChanged({ from: OrderStatus.Pending, to: OrderStatus.Processing, failOnError: false })
   onStatusChanged(params: { entity: Order; payload: any }) {
     const { entity, payload } = params;
-    throw new Error("must be fail");
+    throw new Error('must be fail');
   }
 }
 
@@ -233,7 +233,9 @@ describe('Simple Order Workflow', () => {
     try {
       await orderWorkflow.onModuleInit();
     } catch (error) {
-      expect(error.message).toBe('Action method execute must have signature (params: { entity: T, payload?: P | T | object | string })');
+      expect(error.message).toBe(
+        'Action method execute must have signature (params: { entity: T, payload?: P | T | object | string })',
+      );
     }
   });
 

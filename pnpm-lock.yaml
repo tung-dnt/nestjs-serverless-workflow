@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@nestjs/cache-manager':
+    specifier: ^3.0.1
+    version: 3.0.1(@nestjs/common@11.1.3)(@nestjs/core@11.1.3)(cache-manager@7.2.0)(keyv@5.5.1)(rxjs@7.8.2)
   '@nestjs/common':
     specifier: ^11.1.3
     version: 11.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -20,6 +23,9 @@ dependencies:
   '@nestjs/swagger':
     specifier: ^11.0.2
     version: 11.0.2(@nestjs/common@11.1.3)(@nestjs/core@11.1.3)(reflect-metadata@0.2.2)
+  cache-manager:
+    specifier: ^7.2.0
+    version: 7.2.0
   reflect-metadata:
     specifier: ^0.2.2
     version: 0.2.2
@@ -31,15 +37,12 @@ devDependencies:
   '@nestjs/testing':
     specifier: ^11.1.3
     version: 11.1.3(@nestjs/common@11.1.3)(@nestjs/core@11.1.3)
-  '@types/chai':
-    specifier: ^5.2.2
-    version: 5.2.2
+  '@types/aws-lambda':
+    specifier: ^8.10.152
+    version: 8.10.152
   '@types/jest':
     specifier: ^30.0.0
     version: 30.0.0
-  '@types/mocha':
-    specifier: ^10.0.10
-    version: 10.0.10
   '@types/node':
     specifier: ^24.0.10
     version: 24.0.10
@@ -904,6 +907,10 @@ packages:
       '@jridgewell/sourcemap-codec': 1.5.5
     dev: true
 
+  /@keyv/serialize@1.1.1:
+    resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
+    dev: false
+
   /@lukeed/csprng@1.1.0:
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
     engines: {node: '>=8'}
@@ -921,6 +928,22 @@ packages:
       '@tybys/wasm-util': 0.10.0
     dev: true
     optional: true
+
+  /@nestjs/cache-manager@3.0.1(@nestjs/common@11.1.3)(@nestjs/core@11.1.3)(cache-manager@7.2.0)(keyv@5.5.1)(rxjs@7.8.2):
+    resolution: {integrity: sha512-4UxTnR0fsmKL5YDalU2eLFVnL+OBebWUpX+hEduKGncrVKH4PPNoiRn1kXyOCjmzb0UvWgqubpssNouc8e0MCw==}
+    peerDependencies:
+      '@nestjs/common': ^9.0.0 || ^10.0.0 || ^11.0.0
+      '@nestjs/core': ^9.0.0 || ^10.0.0 || ^11.0.0
+      cache-manager: '>=6'
+      keyv: '>=5'
+      rxjs: ^7.8.1
+    dependencies:
+      '@nestjs/common': 11.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.3(@nestjs/common@11.1.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      cache-manager: 7.2.0
+      keyv: 5.5.1
+      rxjs: 7.8.2
+    dev: false
 
   /@nestjs/common@11.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2):
     resolution: {integrity: sha512-ogEK+GriWodIwCw6buQ1rpcH4Kx+G7YQ9EwuPySI3rS05pSdtQ++UhucjusSI9apNidv+QURBztJkRecwwJQXg==}
@@ -1210,6 +1233,10 @@ packages:
     dev: true
     optional: true
 
+  /@types/aws-lambda@8.10.152:
+    resolution: {integrity: sha512-soT/c2gYBnT5ygwiHPmd9a1bftj462NWVk2tKCc1PYHSIacB2UwbTS2zYG4jzag1mRDuzg/OjtxQjQ2NKRB6Rw==}
+    dev: true
+
   /@types/babel__core@7.20.5:
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
     dependencies:
@@ -1239,18 +1266,8 @@ packages:
       '@babel/types': 7.28.2
     dev: true
 
-  /@types/chai@5.2.2:
-    resolution: {integrity: sha512-8kB30R7Hwqf40JPiKhVzodJs2Qc1ZJ5zuT3uzw5Hq/dhNCl3G3l83jfpdI1e20BP348+fV7VIL/+FxaXkqBmWg==}
-    dependencies:
-      '@types/deep-eql': 4.0.2
-    dev: true
-
   /@types/cookiejar@2.1.5:
     resolution: {integrity: sha512-he+DHOWReW0nghN24E1WUqM0efK4kI9oTqDm6XmK8ZPe2djZ90BSNdGnIyCLzCPw7/pogPlGbzI2wHGGmi4O/Q==}
-    dev: true
-
-  /@types/deep-eql@4.0.2:
-    resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
     dev: true
 
   /@types/eslint-scope@3.7.7:
@@ -1300,10 +1317,6 @@ packages:
 
   /@types/methods@1.1.4:
     resolution: {integrity: sha512-ymXWVrDiCxTBE3+RIrrP533E70eA+9qu7zdWoHuOmGujkYtzf4HQF96b8nwHLqhuf4ykX61IGRIB38CC6/sImQ==}
-    dev: true
-
-  /@types/mocha@10.0.10:
-    resolution: {integrity: sha512-xPyYSz1cMPnJQhl0CLMH68j3gprKZaTjG3s5Vi+fDgx+uhG9NOXwbVt52eFS8ECyXhyKcjDLCBEqBExKuiZb7Q==}
     dev: true
 
   /@types/node@24.0.10:
@@ -2074,6 +2087,12 @@ packages:
   /bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
     engines: {node: '>= 0.8'}
+    dev: false
+
+  /cache-manager@7.2.0:
+    resolution: {integrity: sha512-GRv0Ji8Xgqtrg1Mmi4ygYpIt+SOApQNjJb5+rYIl+5y3u+tyBf+Csx79LL4wQjKLio63A6x1OpuBzhMzRv9jJg==}
+    dependencies:
+      keyv: 5.5.1
     dev: false
 
   /call-bind-apply-helpers@1.0.2:
@@ -3779,6 +3798,12 @@ packages:
     dependencies:
       json-buffer: 3.0.1
     dev: true
+
+  /keyv@5.5.1:
+    resolution: {integrity: sha512-eF3cHZ40bVsjdlRi/RvKAuB0+B61Q1xWvohnrJrnaQslM3h1n79IV+mc9EGag4nrA9ZOlNyr3TUzW5c8uy8vNA==}
+    dependencies:
+      '@keyv/serialize': 1.1.1
+    dev: false
 
   /leven@3.1.0:
     resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}

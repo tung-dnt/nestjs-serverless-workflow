@@ -1,8 +1,6 @@
 import { Inject, Injectable, Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkflowDefinition } from '@this/workflow/definition';
-import { WorkflowModule } from '@this/workflow/module';
-import { Workflow, WorkflowService } from '@this/workflow/service';
+import { WorkflowDefinition, WorkflowModule, WorkflowService, Workflow } from '@/workflow';
 
 export enum OrderEvent {
   Create = 'order.create',
@@ -85,7 +83,6 @@ const simpleDefinition = (entity: Order) => {
 };
 
 describe('WorkflowModule', () => {
-  
   beforeEach(async () => {});
 
   it('must be able to register a workflow then resolve it', async () => {
@@ -120,25 +117,24 @@ describe('WorkflowModule', () => {
       ],
     }).compile();
 
-    const orderWorkflow = module.get("simpleworkflow");
+    const orderWorkflow = module.get('simpleworkflow');
 
     const result = await orderWorkflow.emit({ urn: 'urn:order:123', event: OrderEvent.Submit });
     expect(result).toBeDefined();
     expect(result.status).toBe(OrderStatus.Processing);
-    
   });
 
   it('must be able to register and injected in a service', async () => {
-
     @Injectable()
     class FooService {
-        constructor(
-            @Inject('simpleworkflow')
-            private readonly orderWorkflow: Workflow<Order, OrderEvent>) {}
+      constructor(
+        @Inject('simpleworkflow')
+        private readonly orderWorkflow: Workflow<Order, OrderEvent>,
+      ) {}
 
-        async submitOrder(urn: string) {
-            return await this.orderWorkflow.emit({ urn, event: OrderEvent.Submit });
-        }
+      async submitOrder(urn: string) {
+        return await this.orderWorkflow.emit({ urn, event: OrderEvent.Submit });
+      }
     }
 
     const order = new Order();
@@ -154,9 +150,7 @@ describe('WorkflowModule', () => {
           definition,
         }),
       ],
-      providers: [
-        FooService,
-      ]
+      providers: [FooService],
     }).compile();
 
     const foo = module.get<FooService>(FooService);
