@@ -23,7 +23,7 @@ export interface WorkflowDefinition<T, Event, State> {
   conditions?: (<P>(entity: T, payload?: P | T | object | string) => boolean)[];
   fallback?: <P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<T>;
   /*
-   * When serverless function about to timeout, register thsis callback to checkpoint current entity state
+   * TODO: When serverless function about to timeout, register thsis callback to checkpoint current entity state
    * */
   checkpointCallbacks?: (<P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<any>)[];
 }
