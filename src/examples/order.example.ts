@@ -16,8 +16,7 @@
 
 import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowController, WorkflowModule } from '@/workflow';
-import { CacheModule } from '@nestjs/cache-manager';
-import { Controller, Inject, Injectable, Logger, Module, Post } from '@nestjs/common';
+import { Controller, Injectable, Logger, Module, Post } from '@nestjs/common';
 import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter';
 import { randomUUID } from 'node:crypto';
 
@@ -193,7 +192,6 @@ export class OrderController {
 @Module({
   imports: [
     EventEmitterModule.forRoot({ global: true }),
-    CacheModule.register({ isGlobal: true }),
     WorkflowModule.register({
       providers: [MockBrokerPublisher, OrderWorkflow, OrderEntityService],
     }),
