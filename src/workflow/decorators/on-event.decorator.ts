@@ -50,7 +50,6 @@ export const OnEvent =
 
       async function loadAndValidateEntity(urn: string | number): Promise<T> {
         const entity = await instance.entityService.load(urn);
-
         if (!entity) {
           instance.logger.error(`Element not found`, urn);
           throw new BadRequestException(`Entity not found`, String(urn));

@@ -16,7 +16,7 @@
 
 import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowController, WorkflowModule } from '@/workflow';
-import { Controller, Injectable, Logger, Module, Post } from '@nestjs/common';
+import { Injectable, Logger, Module } from '@nestjs/common';
 import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter';
 import { randomUUID } from 'node:crypto';
 
@@ -175,20 +175,6 @@ export class OrderWorkflow implements WorkflowController<Order, OrderState> {
   }
 }
 
-@Controller()
-export class OrderController {
-  constructor(
-    private readonly orderEntityService: OrderEntityService,
-    private readonly eventEmitter: EventEmitter2,
-  ) {}
-
-  @Post('orders')
-  async createOrder(): Promise<void> {
-    const order = await this.orderEntityService.create();
-    this.eventEmitter.emit(OrderEvent.CREATED, { urn: order.id, payload: { source: 'api' } });
-  }
-}
-
 @Module({
   imports: [
     EventEmitterModule.forRoot({ global: true }),
@@ -196,6 +182,5 @@ export class OrderController {
       providers: [MockBrokerPublisher, OrderWorkflow, OrderEntityService],
     }),
   ],
-  controllers: [OrderController],
 })
 export class OrderModule {}

@@ -25,26 +25,27 @@ export default $config({
       },
       visibilityTimeout: functionTimeout,
     });
-    new sst.aws.Function('orderworkflow', {
-      runtime: 'nodejs22.x' as const,
+    const orderWorkflow = new sst.aws.Function('orderworkflow', {
+      runtime: 'nodejs20.x',
       // layers: [vars.oracle_client_layer],
       environment: {
         BROKER_URL: orderQueue.url,
       },
-      // nodejs: {
-      //   install: vars.excluded_modules,
-      // },
+      nodejs: {
+        sourcemap: true,
+        install: ['class-validator', 'class-transformer', '@nestjs/websockets', '@nestjs/microservices'],
+      },
       versioning: true,
       logging: {
         retention: '3 months',
       },
-      handler: 'src/handler.handler',
+      handler: 'src/main.handler',
       memory: '512 MB',
       timeout: functionTimeout,
       // concurrency: {
       //   reserved: 50,
       // },
-      url: true,
     });
+    orderQueue.subscribe(orderWorkflow.arn);
   },
 });
