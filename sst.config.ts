@@ -32,15 +32,16 @@ export default $config({
         BROKER_URL: orderQueue.url,
       },
       nodejs: {
-        sourcemap: true,
-        install: [
-          'class-validator',
-          'class-transformer',
-          '@nestjs/websockets',
-          '@nestjs/microservices',
-          '@aws-sdk/client-dynamodb',
-          '@aws-sdk/lib-dynamodb',
-        ],
+        // install: ['class-validator', 'class-transformer'],
+        esbuild: {
+          external: [
+            '@nestjs/websockets',
+            '@nestjs/microservices',
+            '@aws-sdk/client-dynamodb',
+            '@aws-sdk/lib-dynamodb',
+            '@types',
+          ],
+        },
       },
       versioning: true,
       logging: {
