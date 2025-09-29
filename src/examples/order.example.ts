@@ -16,20 +16,11 @@
 
 import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowController, WorkflowModule } from '@/workflow';
-import { Injectable, Logger, Module } from '@nestjs/common';
-import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter';
-import { randomUUID } from 'node:crypto';
-
-/**
- * Order domain types
- */
-export enum OrderState {
-  CREATED = 'created',
-  PROCESSING = 'processing',
-  SHIPPED = 'shipped',
-  CANCELLED = 'cancelled',
-  FAILED = 'failed',
-}
+import { Controller, Injectable, Logger, Module } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { GetItemCommand, PutItemCommand } from 'dynamodb-toolbox';
+import { uuidv7 } from 'uuidv7';
+import { Order, OrderEntity, OrderState } from './dynamodb/order.table';
 
 export enum OrderEvent {
   CREATED = 'order.created',
@@ -39,40 +30,29 @@ export enum OrderEvent {
   FAILED = 'order.failed',
 }
 
-export interface Order {
-  id: string;
-  item: string;
-  quantity: number;
-  price: number;
-  status: OrderState;
-}
-
 @Injectable()
 export class OrderEntityService implements IEntity<Order, OrderState> {
-  private store = new Map<string, Order>();
-
   async create(): Promise<Order> {
     const order: Order = {
-      id: randomUUID(),
+      id: uuidv7(),
       quantity: 0,
-      item: '',
+      item: 'ahihihi',
       price: 0,
       status: OrderState.CREATED,
     };
-    this.store.set(String(order.id), order);
+    await OrderEntity.build(PutItemCommand).item(order).send();
     return order;
   }
 
-  async load(urn: string | number): Promise<Order | null> {
-    const key = String(urn);
-    return this.store.has(key) ? { ...this.store.get(key)! } : null;
+  async load(urn: string): Promise<Order | null> {
+    const { Item } = await OrderEntity.build(GetItemCommand).key({ id: urn }).send();
+    if (!Item) throw new Error(`Order ${urn} not found!`);
+    return Item;
   }
 
   async update(order: Order, status: OrderState): Promise<Order> {
-    const id = String(order.id);
-    // defensive copy
     const updated: Order = { ...order, status };
-    this.store.set(id, updated);
+    await OrderEntity.build(PutItemCommand).item(order).send();
     return updated;
   }
 
@@ -175,6 +155,15 @@ export class OrderWorkflow implements WorkflowController<Order, OrderState> {
   }
 }
 
+@Controller()
+class OrderController {
+  constructor(private readonly entity: OrderEntityService) {}
+
+  async createEntity() {
+    return this.entity.create();
+  }
+}
+
 @Module({
   imports: [
     WorkflowModule.register({
@@ -183,5 +172,6 @@ export class OrderWorkflow implements WorkflowController<Order, OrderState> {
       broker: MockBrokerPublisher,
     }),
   ],
+  controllers: [OrderController],
 })
 export class OrderModule {}

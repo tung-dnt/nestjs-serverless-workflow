@@ -33,13 +33,20 @@ export default $config({
       },
       nodejs: {
         sourcemap: true,
-        install: ['class-validator', 'class-transformer', '@nestjs/websockets', '@nestjs/microservices'],
+        install: [
+          'class-validator',
+          'class-transformer',
+          '@nestjs/websockets',
+          '@nestjs/microservices',
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/lib-dynamodb',
+        ],
       },
       versioning: true,
       logging: {
         retention: '3 months',
       },
-      handler: 'src/main.handler',
+      handler: 'src/lambda.handler',
       memory: '512 MB',
       timeout: functionTimeout,
       // concurrency: {

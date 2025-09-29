@@ -27,9 +27,11 @@ export const LambdaEventHandler =
     }, safetyWindowMs);
 
     try {
-      const processingPromises = event.Records.map(async (record) => {
+      const processingPromises = event.Records.map(async (record, i) => {
         try {
           const payload: WorkflowEvent = JSON.parse(record.body);
+          console.log('processing record ', i + 1);
+          console.log(payload);
 
           // Race between processing and shutdown
           await Promise.race([
@@ -38,6 +40,7 @@ export const LambdaEventHandler =
               payload: payload.payload,
             }),
             shutdownPromise.then(() => {
+              console.log('Shutdown promise...');
               // If we're shutting down and this promise hasn't completed,
               // mark it as a failure so SQS can retry it
               if (!processedRecords.has(record.messageId)) {

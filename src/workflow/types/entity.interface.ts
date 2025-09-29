@@ -33,4 +33,4 @@ export interface IEntity<T = any, State = string | number> {
    * @returns The entity's URN
    */
   urn(entity: T): string | number;
-}>;
+}
