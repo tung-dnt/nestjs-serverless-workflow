@@ -45,6 +45,7 @@ export default $config({
       // concurrency: {
       //   reserved: 50,
       // },
+      permissions: [{ effect: 'allow', actions: ['sqs:*'], resources: [orderQueue.arn] }],
     });
     orderQueue.subscribe(orderWorkflow.arn);
   },

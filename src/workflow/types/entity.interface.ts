@@ -1,4 +1,4 @@
-export interface IEntity<T, State> {
+export interface IEntity<T = any, State = string | number> {
   /**
    * Creates a new instance of the entity
    * @returns A new entity instance
@@ -33,4 +33,4 @@ export interface IEntity<T, State> {
    * @returns The entity's URN
    */
   urn(entity: T): string | number;
-}
+}>;

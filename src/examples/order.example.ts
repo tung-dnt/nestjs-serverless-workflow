@@ -177,9 +177,10 @@ export class OrderWorkflow implements WorkflowController<Order, OrderState> {
 
 @Module({
   imports: [
-    EventEmitterModule.forRoot({ global: true }),
     WorkflowModule.register({
-      providers: [MockBrokerPublisher, OrderWorkflow, OrderEntityService],
+      entities: [OrderEntityService],
+      workflows: [OrderWorkflow],
+      broker: MockBrokerPublisher,
     }),
   ],
 })
