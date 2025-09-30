@@ -1,0 +1,43 @@
+service: nestjs-serverless-workflow
+
+frameworkVersion: '^4.4.0'
+
+build:
+  esbuild: false
+
+plugins:
+  - serverless-lift
+  - serverless-plugin-include-dependencies
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+
+package:
+  individually: true
+  excludeDevDependencies: false
+  patterns:
+    - '!**/**'
+    - dist/**
+custom:
+  includeDependencies:
+    enableCaching: true
+
+constructs:
+  order-queue:
+    type: queue
+    fifo: true
+    maxRetries: 3
+    worker:
+      handler: dist/lambda.handler
+      memorySize: 512
+      timeout: 900 # 15 minutes in seconds
+      versionFunctions: true
+      logRetentionInDays: 90 # 3 months
+    extensions:
+      queue:
+        Properties:
+          ContentBasedDeduplication: false
+          MaximumMessageSize: 1024
+          VisibilityTimeout: 900 # 15 minutes
