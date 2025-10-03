@@ -5,6 +5,7 @@
 </picture>
 
 # NestJS Workflow & State Machine
+
 A flexible workflow engine built on top of NestJS framework, enabling developers to create, manage, and execute complex workflows in their Node.js applications.
 
 ## 🎯 Live Examples & Demos
@@ -20,6 +21,7 @@ The repository includes three comprehensive real-world examples:
 3. **📊 Kafka-Driven Inventory** - Real-time event-driven inventory management with Kafka integration
 
 Each example features:
+
 - ✨ **Interactive Visual Mode** - See workflows in action with real-time state visualization
 - 🎮 **Interactive Controls** - Manually trigger transitions and explore different paths
 - 🤖 **Automated Scenarios** - Pre-built test cases demonstrating various workflow paths
@@ -28,6 +30,7 @@ Each example features:
 **[➡️ Get Started with Examples](https://github.com/@nestjs-serverless-workflow-examples#-quick-start)**
 
 ## Table of Contents
+
 - [Features](#features)
 - [Stateless Architecture](#stateless-architecture)
 - [Installation](#installation)
@@ -39,6 +42,7 @@ Each example features:
 - [Complete Example with Kafka Integration](#complete-example-with-kafka-integration)
 
 ## Features
+
 - Workflow Definitions: Define workflows using a simple, declarative syntax
 - State Management: Track and persist workflow states
 - Event-Driven Architecture: Built on NestJS's event system for flexible workflow triggers
@@ -52,7 +56,8 @@ Each example features:
 Documentation: https://@nestjs-serverless-workflow.github.io/libraries/docs/workflow/intro
 
 # Stateless Architecture
-## NestJS Workflow is designed with a stateless architecture, which offers several key benefits:
+
+## NestJS Workflow is designed with a stateless architecture, which offers several key benefits
 
 Benefits of Stateless Design
 
@@ -70,6 +75,7 @@ Use your existing repositories and data access patterns
 Persist workflow state alongside your entity data
 Avoid complex synchronization between separate state stores
 Maintain transactional integrity with your domain operations
+
 ```
 // Example of how state is part of your domain entity
 export class Order {
@@ -85,18 +91,20 @@ export class Order {
 The workflow engine simply reads and updates this state property according to your defined transitions, without needing to maintain any separate state storage.
 
 ## Installation
+
 ```bash
 npm install @nestjs-serverless-workflow
 ```
 
 Or using yarn:
+
 ```bash
 yarn add @nestjs-serverless-workflow
 ```
 
 ## Quick Start
 
-### 🎮 Try the Interactive Demos First!
+### 🎮 Try the Interactive Demos First
 
 Before diving into code, experience workflows visually with our interactive demos:
 
@@ -108,6 +116,7 @@ npm install && npm run demo
 ```
 
 You'll see an interactive workflow visualization like this:
+
 ```
 ╔══════════════╗     ┌──────────────┐     ┌──────────────┐
 ║  REGISTERED  ║ --> │EMAIL_VERIFIED│ --> │PROFILE_COMPLETE│
@@ -123,8 +132,6 @@ You'll see an interactive workflow visualization like this:
 ```
 
 **[🚀 Explore All Examples](https://github.com/@nestjs-serverless-workflow-examples)**
-
-
 
 ### How It Works
 
@@ -340,3 +347,4 @@ flowchart TD
   FinalCheck -- true --> End
   FinalCheck -- false --> NextEvent --> LoopBack
 ```
+````
