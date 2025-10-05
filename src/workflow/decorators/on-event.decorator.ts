@@ -20,7 +20,7 @@ import { OnEvent as OnEventListener } from '@nestjs/event-emitter';
 // 1. Idempotency key to avoid duplicated event processing (DONE - using SQS FIFO queue)
 // 2. Handle workflow session recovery from failed states (PLAN: using SQS message filtering)
 // 3. Task schedule -> WAIT methods (PLAN: using SQS message filtering)
-// 4. IDLE states handling (PLAN: using SQS message filtering)
+// 4. IDLE states handling (DONE: using conditions)
 // 5. FAILED states handling (PLAN: using SQS message filtering)
 // 6. Timeout handling (IN_PROGRESS)
 export const OnEvent =
@@ -130,7 +130,18 @@ export const OnEvent =
         }
 
         if (isInIdleStatus(entity)) {
-          // TODO: handle logic for idle status
+          if (!transition.conditions) {
+            throw new BadRequestException(
+              `Idle state ${transition.from} transitions must provide conditions for further navigation, please check for workflow definition and try again!`,
+            );
+          }
+
+          if (transition.conditions.some((condition) => !condition)) {
+            instance.logger.log(
+              `Element ${urn} is idle from ${transition.from} to ${transition.to} status. Waiting for external event...`,
+            );
+            return;
+          }
         }
 
         instance.logger.log(`Executing transition from ${entityStatus} to ${transition.to}`, urn);

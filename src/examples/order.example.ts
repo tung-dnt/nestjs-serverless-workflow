@@ -84,7 +84,7 @@ export class MockBrokerPublisher implements BrokerPublisher {
   name: 'OrderWorkflow',
   states: {
     finals: [OrderState.SHIPPED, OrderState.CANCELLED],
-    idles: [OrderState.CREATED],
+    idles: [OrderState.CREATED], // Make sure to add conditions to make transition from idle to non-idle states
     failed: OrderState.FAILED,
   },
   transitions: [
@@ -92,7 +92,7 @@ export class MockBrokerPublisher implements BrokerPublisher {
       event: OrderEvent.CREATED,
       from: [OrderState.CREATED],
       to: OrderState.PROCESSING,
-      conditions: [], // could add validation conditions
+      conditions: [(_entity: Order, payload: { approved: boolean }) => payload.approved], // idle for approval, only run workflow once matched conditions
     },
     {
       event: OrderEvent.PROCESSING,
