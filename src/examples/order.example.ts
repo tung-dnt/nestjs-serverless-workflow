@@ -116,7 +116,7 @@ export class MockBrokerPublisher implements BrokerPublisher {
   },
 })
 export class OrderWorkflow {
-  readonly logger = new Logger(OrderWorkflow.name);
+  private readonly logger = new Logger(OrderWorkflow.name);
 
   constructor(
     readonly entityService: OrderEntityService,

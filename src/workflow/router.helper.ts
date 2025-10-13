@@ -87,5 +87,6 @@ export class StateRouterHelper<T, Event, State> {
       // legacy: single object param { entity, payload }
       args = [{ entity, payload }];
     }
+    return args;
   }
 }

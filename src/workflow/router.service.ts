@@ -112,7 +112,7 @@ export class StateRouter {
         let eventActionResult = null;
         try {
           const args = routerHelper.buildParamDecorators(entity, payload, instance, handlerName);
-          eventActionResult = await handler(args);
+          eventActionResult = await handler.apply(instance, args);
         } catch (e) {
           await entityService.update(entity, definition.states.failed);
           logger.error(`Transition failed. Setting status to failed (${e.message})`, urn);
