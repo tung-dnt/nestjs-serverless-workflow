@@ -21,6 +21,7 @@ import { Controller, Injectable, Logger, Module, Post } from '@nestjs/common';
 import { GetItemCommand, PutItemCommand } from 'dynamodb-toolbox';
 import { uuidv7 } from 'uuidv7';
 import { Order, OrderEntity, OrderState } from './dynamodb/order.table';
+import { WorkflowEvent } from '@/event-bus/types/workflow-event.interface';
 
 export enum OrderEvent {
   CREATED = 'order.created',
@@ -72,11 +73,15 @@ export class OrderEntityService implements IEntity<Order, OrderState> {
 export class MockBrokerPublisher implements BrokerPublisher {
   private readonly logger = new Logger(MockBrokerPublisher.name);
 
-  async emit<T>(payload: { topic: string; urn: string | number; payload?: T | object | string }): Promise<void> {
+  async emit<T>(payload: WorkflowEvent<T>): Promise<void> {
     const { topic, urn, payload: payloadData } = payload;
     this.logger.log(`MockBrokerPublisher emit -> topic: ${topic} key: ${urn} payload: ${JSON.stringify(payloadData)}`);
     // In real implementation, push to Kafka/SQS/etc.
-    return;
+  }
+  async retry<T>(payload: WorkflowEvent<T>) {
+    const { topic, urn, payload: payloadData } = payload;
+    this.logger.log(`MockBrokerPublisher RETRY -> topic: ${topic} key: ${urn} payload: ${JSON.stringify(payloadData)}`);
+    // In real implementation, push to Kafka/SQS/etc.
   }
 }
 
@@ -106,6 +111,9 @@ export class MockBrokerPublisher implements BrokerPublisher {
       conditions: [(entity) => false], // can't cancel if already shipped
     },
   ],
+  retry: {
+    maxAttempts: 3,
+  },
   entityService: (instance: OrderWorkflow) => instance.entityService,
   fallback: async (entity: Order, event: string, payload?: any) => {
     // Default fallback: log and return entity unchanged
@@ -143,7 +151,12 @@ export class OrderWorkflow {
     this.logger.log(`handleOrderProcessed called for order ${order.id} payload=${JSON.stringify(payload)}`);
     // perhaps notify customer, create shipment, etc.
     // Optionally publish to broker:
-    await this.brokerPublisher.emit({ topic: 'order.shipment', urn: order.id, payload: { orderId: order.id } });
+    await this.brokerPublisher.emit({
+      topic: 'order.shipment',
+      attempt: 0,
+      urn: order.id,
+      payload: { orderId: order.id },
+    });
     return { shippedAt: new Date().toISOString() };
   }
 
@@ -165,7 +178,7 @@ class OrderController {
   @Post()
   async createEntity() {
     const entity = await this.entity.create();
-    this.router.transit(OrderEvent.CREATED, { urn: entity.id, payload: { approved: true } }); // auto-approve for demo
+    this.router.transit(OrderEvent.CREATED, { urn: entity.id, attempt: 0, payload: { approved: true } }); // auto-approve for demo
     return entity;
   }
 }

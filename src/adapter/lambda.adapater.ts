@@ -33,12 +33,13 @@ export const LambdaEventHandler =
           console.log('processing record ', i + 1);
           console.log(event);
 
-          const { topic, urn, payload } = event;
+          const { topic, urn, payload, attempt } = event;
           // Race between processing and shutdown
           await Promise.race([
             workflowRouter.transit(topic, {
               urn,
               payload,
+              attempt,
             }),
             shutdownPromise.then(() => {
               console.log('Shutdown promise...');

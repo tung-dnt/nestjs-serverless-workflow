@@ -1,8 +1,10 @@
+import { UnretriableException } from '@/exception/unretriable.exception';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 import { WORKFLOW_DEFINITION_KEY, WORKFLOW_HANDLER_KEY } from './decorators';
 import { StateRouterHelper } from './router.helper';
 import { IWorkflowHandler, WorkflowDefinition } from './types';
+import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 
 type WorkflowRoute = {
   instance: any;
@@ -12,19 +14,23 @@ type WorkflowRoute = {
 };
 /**
  * TODO:
- * 1. Declare workflow definition by service token
- * 2. Create `StateRouterSerivce`
+ * 1. Declare workflow definition by service token (DONE using workflow discovery)
+ * 2. Create `StateRouterSerivce` (DONE)
  * 3. Create `SagaService`
  * 4. Create `@OnCompensation`
  * 5. Handle workflow session recovery from failed states (PLAN: using SQS message filtering)
  * 6. Timeout handling (IN_PROGRESS)
+ * 7. Error handling (DONE) -> migrate to BrokerPublisher.retry instead of SQS batchItemFailures
  */
 @Injectable()
 export class StateRouter {
   private routes = new Map<string, WorkflowRoute>();
   private readonly logger = new Logger(StateRouter.name);
 
-  constructor(private readonly discoveryService: DiscoveryService) {}
+  constructor(
+    private readonly discoveryService: DiscoveryService,
+    private readonly broker: BrokerPublisher,
+  ) {}
 
   onModuleInit() {
     const providers = this.discoveryService.getProviders();
@@ -55,7 +61,7 @@ export class StateRouter {
     this.logger.log(`StateRouter initialized with ${this.routes.size} routes: `, Array.from(this.routes.keys()));
   }
 
-  async transit<P>(event: string, params: { urn: string | number; payload: P }) {
+  async transit<P>(event: string, params: { urn: string | number; payload: P; attempt: number }) {
     if (!this.routes.has(event)) throw new BadRequestException(`No workflow found for event: ${event}`);
 
     const { definition, handler, instance, handlerName } = this.routes.get(event) as WorkflowRoute;
@@ -70,7 +76,7 @@ export class StateRouter {
     const entityService = definition.entityService(instance);
     const logger = new Logger(definition.name);
     const routerHelper = new StateRouterHelper(event, entityService, definition, logger);
-    const { urn, payload } = params;
+    const { urn, payload, attempt } = params;
     logger.log(`Method ${handlerName} is being called with arguments:`, params);
 
     // ========================= BEGIN routing logic =========================
@@ -108,14 +114,8 @@ export class StateRouter {
         }
         logger.log(`Executing transition from ${entityStatus} to ${transition.to}`, urn);
 
-        try {
-          const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, handlerName);
-          stepPayload = await handler.apply(instance, args);
-        } catch (e) {
-          await entityService.update(entity, definition.states.failed);
-          logger.error(`Transition failed. Setting status to failed (${e.message})`, urn);
-          throw e;
-        }
+        const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, handlerName);
+        stepPayload = await handler.apply(instance, args);
 
         // Update entity status
         entity = await entityService.update(entity, transition.to);
@@ -140,8 +140,19 @@ export class StateRouter {
       }
       // TODO: add runtime timeout calculator
     } catch (e) {
-      this.logger.error(e);
-      // TODO: add error handler
+      const maxAttempts = definition.retry.maxAttempts;
+      // NOTE: if max attempt reached or Unretriable error, set to failed status
+      if (e instanceof BadRequestException || e instanceof UnretriableException || attempt >= maxAttempts) {
+        await entityService.update(entity, definition.states.failed);
+        logger.error(`Transition failed. Setting status to failed (${e.message})`, urn);
+      } else {
+        const currentAttempt = attempt + 1;
+        // NOTE: retry by put current state back to broker
+        await this.broker.retry(
+          { topic: transition!.event, urn, attempt: currentAttempt, payload: stepPayload },
+          maxAttempts,
+        );
+      }
     }
   }
 }
