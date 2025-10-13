@@ -15,7 +15,7 @@
  */
 
 import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
-import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowController, WorkflowModule } from '@/workflow';
+import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowModule } from '@/workflow';
 import { Controller, Injectable, Logger, Module } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { GetItemCommand, PutItemCommand } from 'dynamodb-toolbox';
@@ -106,6 +106,7 @@ export class MockBrokerPublisher implements BrokerPublisher {
       conditions: [(entity) => false], // can't cancel if already shipped
     },
   ],
+  entityService: (instance: OrderWorkflow) => instance.entityService,
   fallback: async (entity: Order, event: string, payload?: any) => {
     // Default fallback: log and return entity unchanged
     // In a real system you might persist an audit entry or schedule a retry
@@ -114,7 +115,7 @@ export class MockBrokerPublisher implements BrokerPublisher {
     return entity;
   },
 })
-export class OrderWorkflow implements WorkflowController<Order, OrderState> {
+export class OrderWorkflow {
   readonly logger = new Logger(OrderWorkflow.name);
 
   constructor(

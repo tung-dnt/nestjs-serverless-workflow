@@ -1,3 +1,4 @@
+import { IEntity } from './entity.interface';
 import { TransitionEvent } from './transition-event.interface';
 
 /**
@@ -26,4 +27,5 @@ export interface WorkflowDefinition<T, Event, State> {
    * TODO: When serverless function about to timeout, register thsis callback to checkpoint current entity state
    * */
   checkpointCallbacks?: (<P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<any>)[];
+  entityService: (instance: any) => IEntity;
 }

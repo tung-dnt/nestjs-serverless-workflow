@@ -1,14 +1,14 @@
-import { Module, DynamicModule, Provider } from '@nestjs/common';
-import { EventEmitterModule } from '@nestjs/event-emitter';
-import { IEntity, WorkflowController } from './types';
 import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
+import { DynamicModule, Module, Provider } from '@nestjs/common';
+import { DiscoveryModule } from '@nestjs/core';
+import { IEntity } from './types';
 
 @Module({})
 export class WorkflowModule {
   static register(options: {
     imports?: any[];
     entities: Provider<IEntity>[];
-    workflows: Provider<WorkflowController>[];
+    workflows: Provider[];
     broker: Provider<BrokerPublisher>;
   }): DynamicModule {
     const { imports, entities, workflows, broker } = options;
@@ -16,7 +16,7 @@ export class WorkflowModule {
 
     return {
       module: WorkflowModule,
-      imports: [EventEmitterModule.forRoot({ global: true }), ...(imports ?? [])],
+      imports: [DiscoveryModule, ...(imports ?? [])],
       providers: providers,
       exports: providers,
     };

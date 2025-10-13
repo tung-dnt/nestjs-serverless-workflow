@@ -1,6 +1,6 @@
 import { WorkflowEvent } from '@/event-bus/types/workflow-event.interface';
+import { StateRouter } from '@/workflow/router.service';
 import { INestApplicationContext } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SQSHandler } from 'aws-lambda';
 
 export const LambdaEventHandler =
@@ -8,7 +8,7 @@ export const LambdaEventHandler =
   async (event, context) => {
     // Calculate safety window (5 seconds before timeout)
     const safetyWindowMs = context.getRemainingTimeInMillis() - 5000;
-    const eventEmitter = app.get(EventEmitter2);
+    const workflowRouter = app.get(StateRouter);
     const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 
     // Track processed records
@@ -29,15 +29,16 @@ export const LambdaEventHandler =
     try {
       const processingPromises = event.Records.map(async (record, i) => {
         try {
-          const payload: WorkflowEvent = JSON.parse(record.body);
+          const event: WorkflowEvent = JSON.parse(record.body);
           console.log('processing record ', i + 1);
-          console.log(payload);
+          console.log(event);
 
+          const { topic, urn, payload } = event;
           // Race between processing and shutdown
           await Promise.race([
-            eventEmitter.emitAsync(payload.topic, {
-              urn: payload.urn,
-              payload: payload.payload,
+            workflowRouter.transit(topic, {
+              urn,
+              payload,
             }),
             shutdownPromise.then(() => {
               console.log('Shutdown promise...');
