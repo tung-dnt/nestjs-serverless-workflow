@@ -22,7 +22,8 @@ type WorkflowRoute = {
  */
 @Injectable()
 export class StateRouter {
-  private routes: Map<string, WorkflowRoute>;
+  private routes = new Map<string, WorkflowRoute>();
+  private readonly logger = new Logger(StateRouter.name);
 
   constructor(private readonly discoveryService: DiscoveryService) {}
 
@@ -30,11 +31,19 @@ export class StateRouter {
     const providers = this.discoveryService.getProviders();
     for (const provider of providers) {
       const { instance } = provider;
-      const workflowDefinition = Reflect.getMetadata(WORKFLOW_DEFINITION_KEY, instance);
+      if (!instance || !instance.constructor) continue;
+
+      const workflowDefinition = Reflect.getMetadata(WORKFLOW_DEFINITION_KEY, instance.constructor);
 
       if (!workflowDefinition) continue;
 
-      const handlerStore: IWorkflowHandler[] = Reflect.getMetadata(WORKFLOW_HANDLER_KEY, instance);
+      const handlerStore: IWorkflowHandler[] = Reflect.getMetadata(WORKFLOW_HANDLER_KEY, instance.constructor);
+
+      if (!handlerStore || handlerStore.length === 0) {
+        this.logger.warn(`No handlers found for workflow: ${workflowDefinition.name}`);
+        continue;
+      }
+
       for (const handler of handlerStore) {
         this.routes.set(handler.event, {
           handler: handler.handler,
@@ -44,6 +53,7 @@ export class StateRouter {
         });
       }
     }
+    this.logger.log(`StateRouter initialized with ${this.routes.size} routes: `, Array.from(this.routes.keys()));
   }
 
   async transit<P>(event: string, params: { urn: string | number; payload: P }) {
@@ -81,22 +91,22 @@ export class StateRouter {
       );
     }
 
-    while (!!transition) {
-      if (routerHelper.isInIdleStatus(entity)) {
-        if (!transition.conditions) {
-          throw new BadRequestException(
-            `Idle state ${transition.from} transitions must provide conditions for further navigation, please check for workflow definition and try again!`,
-          );
-        }
+    try {
+      while (!!transition) {
+        if (routerHelper.isInIdleStatus(entity)) {
+          if (!transition.conditions) {
+            throw new BadRequestException(
+              `Idle state ${transition.from} transitions must provide conditions for further navigation, please check for workflow definition and try again!`,
+            );
+          }
 
-        if (transition.conditions.some((condition) => !condition)) {
-          logger.log(
-            `Element ${urn} is idle from ${transition.from} to ${transition.to} status. Waiting for external event...`,
-          );
-          break;
+          if (transition.conditions.some((condition) => !condition)) {
+            logger.log(
+              `Element ${urn} is idle from ${transition.from} to ${transition.to} status. Waiting for external event...`,
+            );
+            break;
+          }
         }
-      }
-      try {
         logger.log(`Executing transition from ${entityStatus} to ${transition.to}`, urn);
 
         let eventActionResult = null;
@@ -105,7 +115,7 @@ export class StateRouter {
           eventActionResult = await handler(args);
         } catch (e) {
           await entityService.update(entity, definition.states.failed);
-          logger.log(`Transition failed. Setting status to failed.`, urn);
+          logger.error(`Transition failed. Setting status to failed (${e.message})`, urn);
           throw e;
         }
 
@@ -132,10 +142,10 @@ export class StateRouter {
           `Next event: ${transition?.event ?? 'none'} Next status: ${entityService.status(updatedEntity)} - `,
           urn,
         );
-      } catch (e) {
-        // TODO: add error handler
       }
+      // TODO: add runtime timeout calculator
+    } catch (e) {
+      // TODO: add error handler
     }
-    // TODO: add runtime timeout calculator
   }
 }

@@ -16,8 +16,8 @@
 
 import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowModule } from '@/workflow';
-import { Controller, Injectable, Logger, Module } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { StateRouter } from '@/workflow/router.service';
+import { Controller, Injectable, Logger, Module, Post } from '@nestjs/common';
 import { GetItemCommand, PutItemCommand } from 'dynamodb-toolbox';
 import { uuidv7 } from 'uuidv7';
 import { Order, OrderEntity, OrderState } from './dynamodb/order.table';
@@ -120,7 +120,6 @@ export class OrderWorkflow {
 
   constructor(
     readonly entityService: OrderEntityService,
-    readonly eventEmitter: EventEmitter2,
     readonly brokerPublisher: MockBrokerPublisher,
   ) {}
 
@@ -156,12 +155,18 @@ export class OrderWorkflow {
   }
 }
 
-@Controller()
+@Controller('orders')
 class OrderController {
-  constructor(private readonly entity: OrderEntityService) {}
+  constructor(
+    private readonly entity: OrderEntityService,
+    private readonly router: StateRouter,
+  ) {}
 
+  @Post()
   async createEntity() {
-    return this.entity.create();
+    const entity = await this.entity.create();
+    this.router.transit(OrderEvent.CREATED, { urn: entity.id, payload: { approved: true } }); // auto-approve for demo
+    return entity;
   }
 }
 
