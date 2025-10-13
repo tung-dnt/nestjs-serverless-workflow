@@ -52,7 +52,7 @@ export class OrderEntityService implements IEntity<Order, OrderState> {
 
   async update(order: Order, status: OrderState): Promise<Order> {
     const updated: Order = { ...order, status };
-    await OrderEntity.build(PutItemCommand).item(order).send();
+    await OrderEntity.build(PutItemCommand).item(updated).send();
     return updated;
   }
 

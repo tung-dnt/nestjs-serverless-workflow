@@ -10,7 +10,6 @@ type WorkflowRoute = {
   handlerName: string;
   handler: (payload: any) => Promise<any>;
 };
-
 /**
  * TODO:
  * 1. Declare workflow definition by service token
@@ -75,11 +74,11 @@ export class StateRouter {
     logger.log(`Method ${handlerName} is being called with arguments:`, params);
 
     // ========================= BEGIN routing logic =========================
-
-    const entity = await routerHelper.loadAndValidateEntity(urn);
+    let entity = await routerHelper.loadAndValidateEntity(urn);
     const entityStatus = entityService.status(entity);
 
     let transition = routerHelper.findValidTransition(entity, payload);
+    let stepPayload = payload;
 
     if (!transition) {
       if (definition.fallback) {
@@ -96,7 +95,7 @@ export class StateRouter {
         if (routerHelper.isInIdleStatus(entity)) {
           if (!transition.conditions) {
             throw new BadRequestException(
-              `Idle state ${transition.from} transitions must provide conditions for further navigation, please check for workflow definition and try again!`,
+              `Idle state ${entityStatus} transitions must provide conditions for further navigation, please check for workflow definition and try again!`,
             );
           }
 
@@ -109,10 +108,9 @@ export class StateRouter {
         }
         logger.log(`Executing transition from ${entityStatus} to ${transition.to}`, urn);
 
-        let eventActionResult = null;
         try {
-          const args = routerHelper.buildParamDecorators(entity, payload, instance, handlerName);
-          eventActionResult = await handler.apply(instance, args);
+          const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, handlerName);
+          stepPayload = await handler.apply(instance, args);
         } catch (e) {
           await entityService.update(entity, definition.states.failed);
           logger.error(`Transition failed. Setting status to failed (${e.message})`, urn);
@@ -120,9 +118,9 @@ export class StateRouter {
         }
 
         // Update entity status
-        const updatedEntity = await entityService.update(entity, transition.to);
+        entity = await entityService.update(entity, transition.to);
         logger.log(`Element transitioned from ${entityStatus} to ${transition.to}`, urn);
-        const updatedStatus = entityService.status(updatedEntity);
+        const updatedStatus = entityService.status(entity);
 
         const definedFinalStates = definition.states.finals as Array<string | number>;
         if (definedFinalStates.includes(updatedStatus)) {
@@ -131,20 +129,18 @@ export class StateRouter {
         }
 
         // NOTE: Get next event for automatic transitions
-        transition = routerHelper.findValidTransition(updatedEntity, eventActionResult, {
+        transition = routerHelper.findValidTransition(entity, stepPayload, {
           skipEventCheck: true,
         });
         if (!transition) {
           logger.warn(`There's no valid next transition from ${updatedStatus} or the condition is not met.`, urn);
         }
 
-        logger.log(
-          `Next event: ${transition?.event ?? 'none'} Next status: ${entityService.status(updatedEntity)} - `,
-          urn,
-        );
+        logger.log(`Next event: ${transition?.event ?? 'none'} Next status: ${entityService.status(entity)} - `, urn);
       }
       // TODO: add runtime timeout calculator
     } catch (e) {
+      this.logger.error(e);
       // TODO: add error handler
     }
   }
