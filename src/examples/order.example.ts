@@ -14,14 +14,14 @@
  *   the mock broker with a real message broker publisher.
  */
 
-import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
+import { BROKER_PUBLISHER, BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
+import { WorkflowEvent } from '@/event-bus/types/workflow-event.interface';
 import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowModule } from '@/workflow';
 import { StateRouter } from '@/workflow/router.service';
-import { Controller, Injectable, Logger, Module, Post } from '@nestjs/common';
+import { Controller, Inject, Injectable, Logger, Module, Post } from '@nestjs/common';
 import { GetItemCommand, PutItemCommand } from 'dynamodb-toolbox';
 import { uuidv7 } from 'uuidv7';
 import { Order, OrderEntity, OrderState } from './dynamodb/order.table';
-import { WorkflowEvent } from '@/event-bus/types/workflow-event.interface';
 
 export enum OrderEvent {
   CREATED = 'order.created',
@@ -128,7 +128,7 @@ export class OrderWorkflow {
 
   constructor(
     readonly entityService: OrderEntityService,
-    readonly brokerPublisher: MockBrokerPublisher,
+    @Inject(BROKER_PUBLISHER) readonly brokerPublisher: BrokerPublisher,
   ) {}
 
   @OnEvent<Order, OrderState>(OrderEvent.CREATED)

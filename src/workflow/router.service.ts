@@ -1,10 +1,10 @@
+import { BROKER_PUBLISHER, BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { UnretriableException } from '@/exception/unretriable.exception';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 import { WORKFLOW_DEFINITION_KEY, WORKFLOW_HANDLER_KEY } from './decorators';
 import { StateRouterHelper } from './router.helper';
 import { IWorkflowHandler, WorkflowDefinition } from './types';
-import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 
 type WorkflowRoute = {
   instance: any;
@@ -29,7 +29,7 @@ export class StateRouter {
 
   constructor(
     private readonly discoveryService: DiscoveryService,
-    private readonly broker: BrokerPublisher,
+    @Inject(BROKER_PUBLISHER) private readonly broker: BrokerPublisher,
   ) {}
 
   onModuleInit() {

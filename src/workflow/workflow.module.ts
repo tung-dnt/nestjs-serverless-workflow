@@ -1,4 +1,4 @@
-import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
+import { BROKER_PUBLISHER, BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { DynamicModule, Module, Provider } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import { StateRouter } from './router.service';
@@ -13,7 +13,14 @@ export class WorkflowModule {
     broker: Provider<BrokerPublisher>;
   }): DynamicModule {
     const { imports, entities, workflows, broker } = options;
-    const providers = [...(entities ?? []), ...(workflows ?? []), broker, StateRouter];
+
+    // Create broker provider with token
+    const brokerProvider: Provider = {
+      provide: BROKER_PUBLISHER,
+      useClass: broker as any,
+    };
+
+    const providers = [...(entities ?? []), ...(workflows ?? []), brokerProvider, StateRouter];
 
     return {
       module: WorkflowModule,
