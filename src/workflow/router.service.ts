@@ -1,10 +1,10 @@
-import { BROKER_PUBLISHER, IBrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
+import { IBrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { UnretriableException } from '@/exception/unretriable.exception';
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService, ModuleRef } from '@nestjs/core';
 import { WORKFLOW_DEFINITION_KEY, WORKFLOW_FALLBACK_EVENT, WORKFLOW_HANDLER_KEY } from './decorators';
 import { StateRouterHelperFactory } from './router-helper.factory';
-import { IWorkflowHandler, WorkflowDefinition } from './types';
+import { IWorkflowEntity, IWorkflowHandler, WorkflowDefinition } from './types';
 import { TFallbackHandler } from './types/fallback.interface';
 
 type WorkflowRoute = {
@@ -13,6 +13,8 @@ type WorkflowRoute = {
   handlerName: string;
   handler: (payload: any) => Promise<any>;
   fallback?: TFallbackHandler<any>;
+  entityService: IWorkflowEntity;
+  brokerPublisher: IBrokerPublisher;
 };
 /**
  * TODO:
@@ -31,7 +33,6 @@ export class StateRouter {
 
   constructor(
     private readonly discoveryService: DiscoveryService,
-    @Inject(BROKER_PUBLISHER) private readonly broker: IBrokerPublisher,
     private readonly routerHelperFactory: StateRouterHelperFactory,
     private readonly moduleRef: ModuleRef,
   ) {}
@@ -54,6 +55,10 @@ export class StateRouter {
       }
 
       const fallback = Reflect.getMetadata(WORKFLOW_FALLBACK_EVENT, instance.constructor);
+      const brokerPublisher = this.moduleRef.get<IBrokerPublisher>(workflowDefinition.brokerPublisher, {
+        strict: false,
+      });
+      const entityService = this.moduleRef.get<IWorkflowEntity>(workflowDefinition.entityService, { strict: false });
 
       for (const handler of handlerStore) {
         if (this.routes.has(handler.event)) {
@@ -67,6 +72,8 @@ export class StateRouter {
           instance,
           handlerName: handler.name,
           fallback,
+          entityService,
+          brokerPublisher,
         });
       }
     }
@@ -77,7 +84,7 @@ export class StateRouter {
     if (!this.routes.has(event)) throw new BadRequestException(`No workflow found for event: ${event}`);
 
     const route = this.routes.get(event) as WorkflowRoute;
-    const { definition, instance, fallback } = route;
+    const { definition, instance, fallback, brokerPublisher, entityService } = route;
 
     if (!definition) {
       const className = instance.name;
@@ -86,7 +93,6 @@ export class StateRouter {
       );
     }
 
-    const entityService = this.moduleRef.get(definition.entityService, { strict: false });
     const logger = new Logger(`Router::${definition.name}`);
     const routerHelper = this.routerHelperFactory.create(event, entityService, definition, logger);
     const { urn, payload, attempt } = params;
@@ -164,7 +170,7 @@ export class StateRouter {
       }
       // TODO: add runtime timeout calculator
     } catch (e) {
-      const maxAttempts = definition.retry.maxAttempts;
+      const maxAttempts = definition?.retry?.maxAttempts ?? 1;
       // NOTE: if max attempt reached or Unretriable error, set to failed status
       if (e instanceof BadRequestException || e instanceof UnretriableException || attempt >= maxAttempts) {
         await entityService.update(entity, definition.states.failed);
@@ -176,7 +182,7 @@ export class StateRouter {
         }
         const currentAttempt = attempt + 1;
         // NOTE: retry by put current state back to broker
-        await this.broker.retry(
+        await brokerPublisher.retry(
           { topic: transition.event, urn, attempt: currentAttempt, payload: stepPayload },
           maxAttempts,
         );

@@ -23,7 +23,8 @@ export interface WorkflowDefinition<T, Event, State> {
   // TODO: When serverless function about to timeout, register thsis callback to checkpoint current entity state
   onTimeout?: (<P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<any>)[];
   entityService: string;
-  retry: {
-    maxAttempts: number;
+  brokerPublisher: string;
+  retry?: {
+    maxAttempts?: number;
   };
 }

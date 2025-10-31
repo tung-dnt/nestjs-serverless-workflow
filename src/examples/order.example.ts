@@ -14,7 +14,7 @@
  *   the mock broker with a real message broker publisher.
  */
 
-import { BROKER_PUBLISHER, IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
+import { IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
 import { Entity, IWorkflowEntity, OnEvent, Payload, Workflow, WorkflowModule } from '@/workflow';
 import { Fallback } from '@/workflow/decorators/fallback.decorator';
 import { StateRouter } from '@/workflow/router.service';
@@ -32,6 +32,8 @@ export enum OrderEvent {
 }
 
 const ORDER_WORKFLOW_ENTITY = 'entity.order';
+const ORDER_WORKFLOW_BROKER = 'broker.order';
+const ORDER_SAGA_HISTORY_STORE = 'saga.order.history';
 
 @Injectable()
 export class OrderEntityService implements IWorkflowEntity<Order, OrderState> {
@@ -110,18 +112,19 @@ export class MockBrokerPublisher implements IBrokerPublisher {
       event: OrderEvent.CANCELLED,
       from: [OrderState.CREATED, OrderState.PROCESSING],
       to: OrderState.CANCELLED,
-      conditions: [(entity) => false], // can't cancel if already shipped
+      conditions: [(_entity) => false], // can't cancel if already shipped
     },
   ],
   retry: {
     maxAttempts: 3,
   },
   entityService: ORDER_WORKFLOW_ENTITY,
+  brokerPublisher: ORDER_WORKFLOW_BROKER,
 })
 export class OrderWorkflow {
   private readonly logger = new Logger(OrderWorkflow.name);
 
-  constructor(@Inject(BROKER_PUBLISHER) readonly brokerPublisher: IBrokerPublisher) {}
+  constructor(@Inject(ORDER_WORKFLOW_BROKER) readonly brokerPublisher: IBrokerPublisher) {}
 
   @OnEvent<Order, OrderState>(OrderEvent.CREATED)
   async handleOrderCreated(@Entity() order: Order, @Payload() payload: any) {
@@ -188,7 +191,8 @@ class OrderController {
     WorkflowModule.register({
       entities: [{ provide: ORDER_WORKFLOW_ENTITY, useClass: OrderEntityService }],
       workflows: [OrderWorkflow],
-      broker: { provide: BROKER_PUBLISHER, useClass: MockBrokerPublisher },
+      brokers: [{ provide: ORDER_WORKFLOW_BROKER, useClass: MockBrokerPublisher }],
+      providers: [],
     }),
   ],
   controllers: [OrderController],

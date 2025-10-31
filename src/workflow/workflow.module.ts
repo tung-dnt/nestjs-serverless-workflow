@@ -11,11 +11,12 @@ export class WorkflowModule {
     imports?: any[];
     entities: Provider<IWorkflowEntity>[];
     workflows: Provider[];
-    broker: Provider<IBrokerPublisher>;
+    brokers: Provider<IBrokerPublisher>[];
+    providers?: Provider[];
   }): DynamicModule {
-    const { imports, entities, workflows, broker } = options;
+    const { imports, entities, workflows, brokers } = options;
 
-    const providers = [...(entities ?? []), ...(workflows ?? []), broker, StateRouterHelperFactory, StateRouter];
+    const providers = [...entities, ...workflows, ...brokers, StateRouterHelperFactory, StateRouter];
 
     return {
       module: WorkflowModule,
