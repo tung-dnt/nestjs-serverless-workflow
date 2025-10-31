@@ -1,4 +1,4 @@
-import { WorkflowEvent } from '@/event-bus/types/workflow-event.interface';
+import { IWorkflowEvent } from '@/event-bus/types/workflow-event.interface';
 import { StateRouter } from '@/workflow/router.service';
 import { INestApplicationContext } from '@nestjs/common';
 import { SQSHandler } from 'aws-lambda';
@@ -29,7 +29,7 @@ export const LambdaEventHandler =
     try {
       const processingPromises = event.Records.map(async (record, i) => {
         try {
-          const event: WorkflowEvent = JSON.parse(record.body);
+          const event: IWorkflowEvent = JSON.parse(record.body);
           console.log('processing record ', i + 1);
           console.log(event);
 

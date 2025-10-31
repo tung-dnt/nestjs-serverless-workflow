@@ -3,7 +3,7 @@ import { WORKFLOW_HANDLER_KEY } from './workflow.decorator';
 
 export const OnEvent =
   <T, State = string>(event: string) =>
-  (target: any, _propertyKey: string, descriptor: PropertyDescriptor) => {
+  (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
     let workflowHandlers: IWorkflowHandler[] = Reflect.getMetadata(WORKFLOW_HANDLER_KEY, target.constructor);
 
     if (!workflowHandlers) {
@@ -11,7 +11,7 @@ export const OnEvent =
       Reflect.defineMetadata(WORKFLOW_HANDLER_KEY, workflowHandlers, target.constructor);
     }
 
-    workflowHandlers.push({ event, handler: descriptor.value });
+    workflowHandlers.push({ event, handler: descriptor.value, name: propertyKey });
 
     return descriptor;
   };

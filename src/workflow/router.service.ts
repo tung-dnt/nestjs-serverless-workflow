@@ -1,4 +1,4 @@
-import { BROKER_PUBLISHER, BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
+import { BROKER_PUBLISHER, IBrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { UnretriableException } from '@/exception/unretriable.exception';
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService, ModuleRef } from '@nestjs/core';
@@ -31,7 +31,7 @@ export class StateRouter {
 
   constructor(
     private readonly discoveryService: DiscoveryService,
-    @Inject(BROKER_PUBLISHER) private readonly broker: BrokerPublisher,
+    @Inject(BROKER_PUBLISHER) private readonly broker: IBrokerPublisher,
     private readonly routerHelperFactory: StateRouterHelperFactory,
     private readonly moduleRef: ModuleRef,
   ) {}
@@ -65,7 +65,7 @@ export class StateRouter {
           handler: handler.handler,
           definition: workflowDefinition,
           instance,
-          handlerName: provider.name,
+          handlerName: handler.name,
           fallback,
         });
       }
@@ -93,7 +93,7 @@ export class StateRouter {
 
     // ========================= BEGIN routing logic =========================
     let entity = await routerHelper.loadAndValidateEntity(urn);
-    const entityStatus = entityService.status(entity);
+    let entityStatus = entityService.status(entity);
 
     let transition = routerHelper.findValidTransition(entity, payload);
     let stepPayload = payload;
@@ -124,19 +124,20 @@ export class StateRouter {
             break;
           }
         }
-        logger.log(`Executing transition from ${entityStatus} to ${transition.to}`, urn);
+        logger.log(`Executing transition from ${entityStatus} to ${transition.to} (${urn})`);
 
         const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, handlerName);
         stepPayload = await handler.apply(instance, args);
 
         // Update entity status
         entity = await entityService.update(entity, transition.to);
-        logger.log(`Element transitioned from ${entityStatus} to ${transition.to}`, urn);
-        const updatedStatus = entityService.status(entity);
+        logger.log(`Element transitioned from ${entityStatus} to ${transition.to} (${urn})`);
+
+        entityStatus = entityService.status(entity);
 
         const definedFinalStates = definition.states.finals as Array<string | number>;
-        if (definedFinalStates.includes(updatedStatus)) {
-          logger.log(`Element ${urn} reached final state: ${updatedStatus}`);
+        if (definedFinalStates.includes(entityStatus)) {
+          logger.log(`Element ${urn} reached final state: ${entityStatus}`);
           break;
         }
 
@@ -145,10 +146,10 @@ export class StateRouter {
           skipEventCheck: true,
         });
         if (!transition) {
-          logger.warn(`There's no valid next transition from ${updatedStatus} or the condition is not met.`, urn);
+          logger.warn(`There's no valid next transition from ${entityStatus} or the condition is not met. (${urn})`);
         }
 
-        logger.log(`Next event: ${transition?.event ?? 'none'} Next status: ${entityService.status(entity)} - `, urn);
+        logger.log(`Next event: ${transition?.event ?? 'none'} Next status: ${entityService.status(entity)} (${urn})`);
       }
       // TODO: add runtime timeout calculator
     } catch (e) {

@@ -14,9 +14,8 @@
  *   the mock broker with a real message broker publisher.
  */
 
-import { BROKER_PUBLISHER, BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
-import { WorkflowEvent } from '@/event-bus/types/workflow-event.interface';
-import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowModule } from '@/workflow';
+import { BROKER_PUBLISHER, IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
+import { Entity, IWorkflowEntity, OnEvent, Payload, Workflow, WorkflowModule } from '@/workflow';
 import { Fallback } from '@/workflow/decorators/fallback.decorator';
 import { StateRouter } from '@/workflow/router.service';
 import { Controller, Inject, Injectable, Logger, Module, Post } from '@nestjs/common';
@@ -32,10 +31,10 @@ export enum OrderEvent {
   FAILED = 'order.failed',
 }
 
-const ORDER_WORKFLOW_ENTITY = 'Order Workflow';
+const ORDER_WORKFLOW_ENTITY = 'entity.order';
 
 @Injectable()
-export class OrderEntityService implements IEntity<Order, OrderState> {
+export class OrderEntityService implements IWorkflowEntity<Order, OrderState> {
   async create(): Promise<Order> {
     const order: Order = {
       id: uuidv7(),
@@ -73,15 +72,15 @@ export class OrderEntityService implements IEntity<Order, OrderState> {
  * Minimal mock broker publisher that logs emitted workflow events.
  */
 @Injectable()
-export class MockBrokerPublisher implements BrokerPublisher {
+export class MockBrokerPublisher implements IBrokerPublisher {
   private readonly logger = new Logger(MockBrokerPublisher.name);
 
-  async emit<T>(payload: WorkflowEvent<T>): Promise<void> {
+  async emit<T>(payload: IWorkflowEvent<T>): Promise<void> {
     const { topic, urn, payload: payloadData } = payload;
     this.logger.log(`MockBrokerPublisher emit -> topic: ${topic} key: ${urn} payload: ${JSON.stringify(payloadData)}`);
     // In real implementation, push to Kafka/SQS/etc.
   }
-  async retry<T>(payload: WorkflowEvent<T>) {
+  async retry<T>(payload: IWorkflowEvent<T>) {
     const { topic, urn, payload: payloadData } = payload;
     this.logger.log(`MockBrokerPublisher RETRY -> topic: ${topic} key: ${urn} payload: ${JSON.stringify(payloadData)}`);
     // In real implementation, push to Kafka/SQS/etc.
@@ -122,7 +121,7 @@ export class MockBrokerPublisher implements BrokerPublisher {
 export class OrderWorkflow {
   private readonly logger = new Logger(OrderWorkflow.name);
 
-  constructor(@Inject(BROKER_PUBLISHER) readonly brokerPublisher: BrokerPublisher) {}
+  constructor(@Inject(BROKER_PUBLISHER) readonly brokerPublisher: IBrokerPublisher) {}
 
   @OnEvent<Order, OrderState>(OrderEvent.CREATED)
   async handleOrderCreated(@Entity() order: Order, @Payload() payload: any) {
@@ -172,7 +171,7 @@ export class OrderWorkflow {
 @Controller('orders')
 class OrderController {
   constructor(
-    @Inject(ORDER_WORKFLOW_ENTITY) private readonly entity: IEntity,
+    @Inject(ORDER_WORKFLOW_ENTITY) private readonly entity: IWorkflowEntity,
     private readonly router: StateRouter,
   ) {}
 

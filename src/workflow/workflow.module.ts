@@ -1,17 +1,17 @@
-import { BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
+import { IBrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { DynamicModule, Module, Provider } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import { StateRouterHelperFactory } from './router-helper.factory';
 import { StateRouter } from './router.service';
-import { IEntity } from './types';
+import { IWorkflowEntity } from './types';
 
 @Module({})
 export class WorkflowModule {
   static register(options: {
     imports?: any[];
-    entities: Provider<IEntity>[];
+    entities: Provider<IWorkflowEntity>[];
     workflows: Provider[];
-    broker: Provider<BrokerPublisher>;
+    broker: Provider<IBrokerPublisher>;
   }): DynamicModule {
     const { imports, entities, workflows, broker } = options;
 

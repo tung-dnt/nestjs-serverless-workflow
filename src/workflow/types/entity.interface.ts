@@ -1,4 +1,4 @@
-export interface IEntity<T = any, State = string | number> {
+export interface IWorkflowEntity<T = any, State = string | number> {
   /**
    * Creates a new instance of the entity
    * @returns A new entity instance

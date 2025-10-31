@@ -1,10 +1,10 @@
 import { BadRequestException, Logger } from '@nestjs/common';
-import { IEntity, TransitionEvent, WorkflowDefinition } from './types';
+import { IWorkflowEntity, TransitionEvent, WorkflowDefinition } from './types';
 
 export class StateRouterHelper<T, Event, State> {
   constructor(
     private readonly event: Event,
-    private readonly entityService: IEntity,
+    private readonly entityService: IWorkflowEntity,
     private readonly workflowDefinition: WorkflowDefinition<T, Event, State>,
     private readonly logger: Logger,
   ) {}
@@ -72,8 +72,10 @@ export class StateRouterHelper<T, Event, State> {
   }
 
   buildParamDecorators(entity: T, payload: any, target: any, propertyKey: string | symbol) {
+    // Metadata is stored on the prototype when decorators are applied
+    const prototype = target.constructor?.prototype || target;
     const paramsMeta: Array<{ index: number; type: string; dto?: any }> =
-      Reflect.getOwnMetadata('workflow:params', target, propertyKey) || [];
+      Reflect.getOwnMetadata('workflow:params', prototype, propertyKey) || [];
 
     let args: any[] = [];
     if (paramsMeta && paramsMeta.length > 0) {

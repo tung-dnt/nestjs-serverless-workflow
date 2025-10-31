@@ -1,7 +1,7 @@
-import { BrokerPublisher } from '../types/broker-publisher.interface';
-import { WorkflowEvent } from '../types/workflow-event.interface';
+import { IBrokerPublisher } from '../types/broker-publisher.interface';
+import { IWorkflowEvent } from '../types/workflow-event.interface';
 
-export class SqsEmitter implements BrokerPublisher {
-  async emit<T>(payload: WorkflowEvent): Promise<void> {}
-  async retry<T>(event: WorkflowEvent, maxAttempt: number): Promise<void> {}
+export class SqsEmitter implements IBrokerPublisher {
+  async emit<T>(payload: IWorkflowEvent): Promise<void> {}
+  async retry<T>(event: IWorkflowEvent, maxAttempt: number): Promise<void> {}
 }
