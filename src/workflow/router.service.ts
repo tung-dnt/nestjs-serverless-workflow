@@ -1,16 +1,18 @@
 import { BROKER_PUBLISHER, BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { UnretriableException } from '@/exception/unretriable.exception';
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
-import { DiscoveryService } from '@nestjs/core';
-import { WORKFLOW_DEFINITION_KEY, WORKFLOW_HANDLER_KEY } from './decorators';
-import { StateRouterHelper } from './router.helper';
+import { DiscoveryService, ModuleRef } from '@nestjs/core';
+import { WORKFLOW_DEFINITION_KEY, WORKFLOW_FALLBACK_EVENT, WORKFLOW_HANDLER_KEY } from './decorators';
+import { StateRouterHelperFactory } from './router-helper.factory';
 import { IWorkflowHandler, WorkflowDefinition } from './types';
+import { TFallbackHandler } from './types/fallback.interface';
 
 type WorkflowRoute = {
   instance: any;
   definition: WorkflowDefinition<any, string, string>;
   handlerName: string;
   handler: (payload: any) => Promise<any>;
+  fallback?: TFallbackHandler<any>;
 };
 /**
  * TODO:
@@ -30,6 +32,8 @@ export class StateRouter {
   constructor(
     private readonly discoveryService: DiscoveryService,
     @Inject(BROKER_PUBLISHER) private readonly broker: BrokerPublisher,
+    private readonly routerHelperFactory: StateRouterHelperFactory,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   onModuleInit() {
@@ -49,12 +53,20 @@ export class StateRouter {
         continue;
       }
 
+      const fallback = Reflect.getMetadata(WORKFLOW_FALLBACK_EVENT, instance.constructor);
+
       for (const handler of handlerStore) {
+        if (this.routes.has(handler.event)) {
+          throw new Error(
+            `Duplicate workflow event handler detected for event: ${handler.event} in workflow: ${workflowDefinition.name}`,
+          );
+        }
         this.routes.set(handler.event, {
           handler: handler.handler,
           definition: workflowDefinition,
           instance,
           handlerName: provider.name,
+          fallback,
         });
       }
     }
@@ -64,7 +76,7 @@ export class StateRouter {
   async transit<P>(event: string, params: { urn: string | number; payload: P; attempt: number }) {
     if (!this.routes.has(event)) throw new BadRequestException(`No workflow found for event: ${event}`);
 
-    const { definition, handler, instance, handlerName } = this.routes.get(event) as WorkflowRoute;
+    const { definition, handler, instance, handlerName, fallback } = this.routes.get(event) as WorkflowRoute;
 
     if (!definition) {
       const className = instance.name;
@@ -73,9 +85,9 @@ export class StateRouter {
       );
     }
 
-    const entityService = definition.entityService(instance);
+    const entityService = this.moduleRef.get(definition.entityService, { strict: false });
     const logger = new Logger(definition.name);
-    const routerHelper = new StateRouterHelper(event, entityService, definition, logger);
+    const routerHelper = this.routerHelperFactory.create(event, entityService, definition, logger);
     const { urn, payload, attempt } = params;
     logger.log(`Method ${handlerName} is being called with arguments:`, params);
 
@@ -87,9 +99,9 @@ export class StateRouter {
     let stepPayload = payload;
 
     if (!transition) {
-      if (definition.fallback) {
+      if (fallback) {
         logger.log(`Falling back to the default transition`, urn);
-        await definition.fallback(entity, event, payload);
+        await fallback(entity, event, payload);
       }
       throw new BadRequestException(
         `No matched transition for event: ${event}, status: ${entityStatus}. Please verify your workflow definition!`,

@@ -1,4 +1,3 @@
-import { IEntity } from './entity.interface';
 import { TransitionEvent } from './transition-event.interface';
 
 /**
@@ -21,10 +20,9 @@ export interface WorkflowDefinition<T, Event, State> {
   };
   transitions: TransitionEvent<T, Event, State>[];
   conditions?: (<P>(entity: T, payload?: P | T | object | string) => boolean)[];
-  fallback?: <P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<T>;
   // TODO: When serverless function about to timeout, register thsis callback to checkpoint current entity state
   onTimeout?: (<P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<any>)[];
-  entityService: (instance: any) => IEntity;
+  entityService: string;
   retry: {
     maxAttempts: number;
   };

@@ -17,6 +17,7 @@
 import { BROKER_PUBLISHER, BrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { WorkflowEvent } from '@/event-bus/types/workflow-event.interface';
 import { Entity, IEntity, OnEvent, Payload, Workflow, WorkflowModule } from '@/workflow';
+import { Fallback } from '@/workflow/decorators/fallback.decorator';
 import { StateRouter } from '@/workflow/router.service';
 import { Controller, Inject, Injectable, Logger, Module, Post } from '@nestjs/common';
 import { GetItemCommand, PutItemCommand } from 'dynamodb-toolbox';
@@ -30,6 +31,8 @@ export enum OrderEvent {
   CANCELLED = 'order.cancelled',
   FAILED = 'order.failed',
 }
+
+const ORDER_WORKFLOW_ENTITY = 'Order Workflow';
 
 @Injectable()
 export class OrderEntityService implements IEntity<Order, OrderState> {
@@ -114,22 +117,12 @@ export class MockBrokerPublisher implements BrokerPublisher {
   retry: {
     maxAttempts: 3,
   },
-  entityService: (instance: OrderWorkflow) => instance.entityService,
-  fallback: async (entity: Order, event: string, payload?: any) => {
-    // Default fallback: log and return entity unchanged
-    // In a real system you might persist an audit entry or schedule a retry
-    // Keeping it minimal here:
-    // Note: the actual `Workflow` decorator will log using the workflow controller logger
-    return entity;
-  },
+  entityService: ORDER_WORKFLOW_ENTITY,
 })
 export class OrderWorkflow {
   private readonly logger = new Logger(OrderWorkflow.name);
 
-  constructor(
-    readonly entityService: OrderEntityService,
-    @Inject(BROKER_PUBLISHER) readonly brokerPublisher: BrokerPublisher,
-  ) {}
+  constructor(@Inject(BROKER_PUBLISHER) readonly brokerPublisher: BrokerPublisher) {}
 
   @OnEvent<Order, OrderState>(OrderEvent.CREATED)
   async handleOrderCreated(@Entity() order: Order, @Payload() payload: any) {
@@ -166,12 +159,20 @@ export class OrderWorkflow {
     // release reserved inventory, refund, etc.
     return { cancelledAt: new Date().toISOString() };
   }
+
+  @Fallback
+  async fallback(entity: Order, event: string, payload?: any) {
+    this.logger.warn(
+      `Fallback called for order ${entity.id} on event ${event} with payload ${JSON.stringify(payload)}`,
+    );
+    return entity;
+  }
 }
 
 @Controller('orders')
 class OrderController {
   constructor(
-    private readonly entity: OrderEntityService,
+    @Inject(ORDER_WORKFLOW_ENTITY) private readonly entity: IEntity,
     private readonly router: StateRouter,
   ) {}
 
@@ -186,9 +187,9 @@ class OrderController {
 @Module({
   imports: [
     WorkflowModule.register({
-      entities: [OrderEntityService],
+      entities: [{ provide: ORDER_WORKFLOW_ENTITY, useClass: OrderEntityService }],
       workflows: [OrderWorkflow],
-      broker: MockBrokerPublisher,
+      broker: { provide: BROKER_PUBLISHER, useClass: MockBrokerPublisher },
     }),
   ],
   controllers: [OrderController],
