@@ -76,7 +76,8 @@ export class StateRouter {
   async transit<P>(event: string, params: { urn: string | number; payload: P; attempt: number }) {
     if (!this.routes.has(event)) throw new BadRequestException(`No workflow found for event: ${event}`);
 
-    const { definition, handler, instance, handlerName, fallback } = this.routes.get(event) as WorkflowRoute;
+    const route = this.routes.get(event) as WorkflowRoute;
+    const { definition, instance, fallback } = route;
 
     if (!definition) {
       const className = instance.name;
@@ -86,14 +87,14 @@ export class StateRouter {
     }
 
     const entityService = this.moduleRef.get(definition.entityService, { strict: false });
-    const logger = new Logger(definition.name);
+    const logger = new Logger(`Router::${definition.name}`);
     const routerHelper = this.routerHelperFactory.create(event, entityService, definition, logger);
     const { urn, payload, attempt } = params;
-    logger.log(`Method ${handlerName} is being called with arguments:`, params);
+    logger.log(`Method ${route.handlerName} is being called with arguments:`, params);
 
     // ========================= BEGIN routing logic =========================
     let entity = await routerHelper.loadAndValidateEntity(urn);
-    let entityStatus = entityService.status(entity);
+    const entityStatus = entityService.status(entity);
 
     let transition = routerHelper.findValidTransition(entity, payload);
     let stepPayload = payload;
@@ -110,6 +111,7 @@ export class StateRouter {
 
     try {
       while (!!transition) {
+        logger.log('======= WORKFLOW STEP STARTED =======');
         if (routerHelper.isInIdleStatus(entity)) {
           if (!transition.conditions) {
             throw new BadRequestException(
@@ -124,20 +126,29 @@ export class StateRouter {
             break;
           }
         }
-        logger.log(`Executing transition from ${entityStatus} to ${transition.to} (${urn})`);
 
-        const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, handlerName);
-        stepPayload = await handler.apply(instance, args);
+        const currentEntityStatus = entityService.status(entity);
+        logger.log(`Executing transition from ${currentEntityStatus} to ${transition.to} (${urn})`);
+
+        // Get the correct handler for the current transition event
+        const currentEvent = Array.isArray(transition.event) ? transition.event[0] : transition.event;
+        const currentRoute = this.routes.get(currentEvent as string);
+        if (!currentRoute) {
+          throw new BadRequestException(`No handler found for event: ${currentEvent}`);
+        }
+
+        const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, currentRoute.handlerName);
+        stepPayload = await currentRoute.handler.apply(instance, args);
 
         // Update entity status
         entity = await entityService.update(entity, transition.to);
-        logger.log(`Element transitioned from ${entityStatus} to ${transition.to} (${urn})`);
+        logger.log(`Element transitioned from ${currentEntityStatus} to ${transition.to} (${urn})`);
 
-        entityStatus = entityService.status(entity);
+        const updatedStatus = entityService.status(entity);
 
         const definedFinalStates = definition.states.finals as Array<string | number>;
-        if (definedFinalStates.includes(entityStatus)) {
-          logger.log(`Element ${urn} reached final state: ${entityStatus}`);
+        if (definedFinalStates.includes(updatedStatus)) {
+          logger.log(`Element ${urn} reached final state: ${updatedStatus}`);
           break;
         }
 
@@ -146,10 +157,10 @@ export class StateRouter {
           skipEventCheck: true,
         });
         if (!transition) {
-          logger.warn(`There's no valid next transition from ${entityStatus} or the condition is not met. (${urn})`);
+          logger.warn(`There's no valid next transition from ${updatedStatus} or the condition is not met. (${urn})`);
         }
 
-        logger.log(`Next event: ${transition?.event ?? 'none'} Next status: ${entityService.status(entity)} (${urn})`);
+        logger.log(`Next event: ${transition?.event ?? 'none'} Next status: ${updatedStatus} (${urn})`);
       }
       // TODO: add runtime timeout calculator
     } catch (e) {
@@ -159,10 +170,14 @@ export class StateRouter {
         await entityService.update(entity, definition.states.failed);
         logger.error(`Transition failed. Setting status to failed (${e.message})`, urn);
       } else {
+        if (!transition) {
+          logger.error(`No transition available to retry (${urn})`);
+          return;
+        }
         const currentAttempt = attempt + 1;
         // NOTE: retry by put current state back to broker
         await this.broker.retry(
-          { topic: transition!.event, urn, attempt: currentAttempt, payload: stepPayload },
+          { topic: transition.event, urn, attempt: currentAttempt, payload: stepPayload },
           maxAttempts,
         );
       }
