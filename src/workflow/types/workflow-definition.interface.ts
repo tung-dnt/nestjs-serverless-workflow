@@ -11,7 +11,7 @@ import { TransitionEvent } from './transition-event.interface';
  * - `Conditions`: An optional array of condition functions.
  * - `Entity`: An optional entity service or configuration for loading/updating entities.
  */
-export interface WorkflowDefinition<T, Event, State> {
+export interface IWorkflowDefinition<T, Event, State> {
   name: string;
   states: {
     finals: State[];

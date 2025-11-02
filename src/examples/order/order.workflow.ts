@@ -1,5 +1,5 @@
 import { IBrokerPublisher } from '@/event-bus';
-import { Entity, OnFallback, OnEvent, Payload, Workflow } from '@/workflow';
+import { Entity, OnDefault, OnEvent, Payload, Workflow } from '@/workflow';
 import { Inject, Logger } from '@nestjs/common';
 
 import { Order, OrderState } from '../dynamodb/order.table';
@@ -85,7 +85,7 @@ export class OrderWorkflow {
     return { cancelledAt: new Date().toISOString() };
   }
 
-  @OnFallback
+  @OnDefault
   async fallback(entity: Order, event: string, payload?: any) {
     this.logger.warn(
       `Fallback called for order ${entity.id} on event ${event} with payload ${JSON.stringify(payload)}`,

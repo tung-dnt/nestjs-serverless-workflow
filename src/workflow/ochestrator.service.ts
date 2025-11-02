@@ -1,18 +1,19 @@
 import { IBrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { UnretriableException } from '@/exception/unretriable.exception';
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService, ModuleRef } from '@nestjs/core';
-import { WORKFLOW_DEFINITION_KEY, WORKFLOW_FALLBACK_EVENT, WORKFLOW_HANDLER_KEY } from './decorators';
-import { StateRouterHelperFactory } from './router-helper.factory';
-import { IWorkflowEntity, IWorkflowHandler, WorkflowDefinition } from './types';
-import { TFallbackHandler } from './types/fallback.interface';
+
+import { WORKFLOW_DEFINITION_KEY, WORKFLOW_DEFAULT_EVENT, WORKFLOW_HANDLER_KEY } from './decorators';
+import { StateRouterHelperFactory } from './router.factory';
+import { IWorkflowEntity, IWorkflowHandler, IWorkflowDefinition } from './types';
+import { TDefaultHandler } from './types/default.interface';
 
 type WorkflowRoute = {
   instance: any;
-  definition: WorkflowDefinition<any, string, string>;
+  definition: IWorkflowDefinition<any, string, string>;
   handlerName: string;
   handler: (payload: any) => Promise<any>;
-  fallback?: TFallbackHandler<any>;
+  defaultHandler?: TDefaultHandler<any>;
   entityService: IWorkflowEntity;
   brokerPublisher: IBrokerPublisher;
 };
@@ -27,9 +28,9 @@ type WorkflowRoute = {
  * 7. Error handling (DONE) -> migrate to BrokerPublisher.retry instead of SQS batchItemFailures
  */
 @Injectable()
-export class StateRouter {
+export class OchestratorService {
   private routes = new Map<string, WorkflowRoute>();
-  private readonly logger = new Logger(StateRouter.name);
+  private readonly logger = new Logger(OchestratorService.name);
 
   constructor(
     private readonly discoveryService: DiscoveryService,
@@ -43,18 +44,17 @@ export class StateRouter {
       const { instance } = provider;
       if (!instance || !instance.constructor) continue;
 
-      const workflowDefinition = Reflect.getMetadata(WORKFLOW_DEFINITION_KEY, instance.constructor);
+      const [workflowDefinition, handlerStore, defaultHandler] = [
+        Reflect.getMetadata(WORKFLOW_DEFINITION_KEY, instance.constructor) as IWorkflowDefinition<any, string, string>,
+        Reflect.getMetadata(WORKFLOW_HANDLER_KEY, instance.constructor) as IWorkflowHandler[],
+        Reflect.getMetadata(WORKFLOW_DEFAULT_EVENT, instance.constructor) as TDefaultHandler<any>,
+      ];
 
-      if (!workflowDefinition) continue;
-
-      const handlerStore: IWorkflowHandler[] = Reflect.getMetadata(WORKFLOW_HANDLER_KEY, instance.constructor);
-
-      if (!handlerStore || handlerStore.length === 0) {
+      if (!handlerStore || handlerStore.length === 0 || !workflowDefinition) {
         this.logger.warn(`No handlers found for workflow: ${workflowDefinition.name}`);
         continue;
       }
 
-      const fallback = Reflect.getMetadata(WORKFLOW_FALLBACK_EVENT, instance.constructor);
       const brokerPublisher = this.moduleRef.get<IBrokerPublisher>(workflowDefinition.brokerPublisher, {
         strict: false,
       });
@@ -71,7 +71,7 @@ export class StateRouter {
           definition: workflowDefinition,
           instance,
           handlerName: handler.name,
-          fallback,
+          defaultHandler,
           entityService,
           brokerPublisher,
         });
@@ -84,7 +84,7 @@ export class StateRouter {
     if (!this.routes.has(event)) throw new BadRequestException(`No workflow found for event: ${event}`);
 
     const route = this.routes.get(event) as WorkflowRoute;
-    const { definition, instance, fallback, brokerPublisher, entityService } = route;
+    const { definition, instance, defaultHandler, brokerPublisher, entityService } = route;
 
     if (!definition) {
       const className = instance.name;
@@ -106,9 +106,9 @@ export class StateRouter {
     let stepPayload = payload;
 
     if (!transition) {
-      if (fallback) {
+      if (defaultHandler) {
         logger.log(`Falling back to the default transition`, urn);
-        await fallback(entity, event, payload);
+        await defaultHandler(entity, event, payload);
       }
       throw new BadRequestException(
         `No matched transition for event: ${event}, status: ${entityStatus}. Please verify your workflow definition!`,

@@ -2,7 +2,7 @@ import { WorkflowAction } from '@/workflow/action.class.decorator';
 import { OnEvent } from '@/workflow/action.event.method.decorator';
 import { Global, Injectable, Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { EntityService, WorkflowDefinition, WorkflowModule, WorkflowService } from '@/workflow';
+import { EntityService, IWorkflowDefinition, WorkflowModule, WorkflowService } from '@/workflow';
 import Stripe from 'stripe';
 
 export class Subscription {
@@ -155,7 +155,7 @@ export class StripeSubscriptionsActions {
   }
 }
 
-const SubscriptionWorkflowDefinition: WorkflowDefinition<
+const SubscriptionWorkflowDefinition: IWorkflowDefinition<
   Subscription,
   Stripe.Subscription | Stripe.Invoice | any,
   SubscriptionEvent | StripeSubscriptionEvent,

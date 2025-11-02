@@ -1,4 +1,4 @@
-import { WorkflowDefinition } from '@/workflow';
+import { IWorkflowDefinition } from '@/workflow';
 
 export enum OrderEvent {
   Create = 'order.create',
@@ -29,7 +29,7 @@ export class Order {
 
 describe('Workflow Definition Tests', () => {
   it('should able to define it', async () => {
-    const definition: WorkflowDefinition<Order, String, OrderEvent, OrderStatus> = {
+    const definition: IWorkflowDefinition<Order, String, OrderEvent, OrderStatus> = {
       states: {
         finals: [OrderStatus.Completed, OrderStatus.Failed, OrderStatus.Canceled],
         idles: [
@@ -93,7 +93,7 @@ describe('Workflow Definition Tests', () => {
   });
 
   it('should able to define with actions and conditions', async () => {
-    const definition: WorkflowDefinition<Order, String, OrderEvent, OrderStatus> = {
+    const definition: IWorkflowDefinition<Order, String, OrderEvent, OrderStatus> = {
       states: {
         finals: [OrderStatus.Completed, OrderStatus.Failed, OrderStatus.Canceled],
         idles: [
@@ -148,7 +148,7 @@ describe('Workflow Definition Tests', () => {
   });
 
   it('should able to define with just enums', async () => {
-    const definition: WorkflowDefinition<Order, String, OrderEvent, OrderStatus> = {
+    const definition: IWorkflowDefinition<Order, String, OrderEvent, OrderStatus> = {
       states: {
         finals: [OrderStatus.Completed, OrderStatus.Failed, OrderStatus.Canceled],
         idles: [

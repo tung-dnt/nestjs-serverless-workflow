@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkflowDefinition, WorkflowService } from '@/workflow';
+import { IWorkflowDefinition, WorkflowService } from '@/workflow';
 import { ModuleRef } from '@nestjs/core';
 
 // Define test enums and classes
@@ -57,7 +57,7 @@ describe('Complex Workflow Transitions', () => {
     testEntity = new TestEntity('test:123', TestStatus.Draft);
 
     // Create workflow definition with multiple from states and multiple events
-    const definition: WorkflowDefinition<TestEntity, any, TestEvent, TestStatus> = {
+    const definition: IWorkflowDefinition<TestEntity, any, TestEvent, TestStatus> = {
       name: 'complex-workflow-test',
       states: {
         finals: [TestStatus.Completed, TestStatus.Cancelled, TestStatus.Failed],

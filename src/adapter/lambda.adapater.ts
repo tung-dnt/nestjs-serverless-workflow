@@ -1,5 +1,5 @@
 import { IWorkflowEvent } from '@/event-bus/types/workflow-event.interface';
-import { StateRouter } from '@/workflow/ochestrator.service';
+import { OchestratorService } from '@/workflow/ochestrator.service';
 import { INestApplicationContext } from '@nestjs/common';
 import { SQSHandler } from 'aws-lambda';
 
@@ -8,7 +8,7 @@ export const LambdaEventHandler =
   async (event, context) => {
     // Calculate safety window (5 seconds before timeout)
     const safetyWindowMs = context.getRemainingTimeInMillis() - 5000;
-    const workflowRouter = app.get(StateRouter);
+    const workflowRouter = app.get(OchestratorService);
     const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 
     // Track processed records

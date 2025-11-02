@@ -1,4 +1,4 @@
-import { WorkflowDefinition, WorkflowService } from '@/workflow';
+import { IWorkflowDefinition, WorkflowService } from '@/workflow';
 
 export enum OrderEvent {
   Create = 'order.create',
@@ -26,7 +26,7 @@ export class Order {
 }
 
 const simpleDefinition = (entity: Order) => {
-  const definition: WorkflowDefinition<Order, any, OrderEvent, OrderStatus> = {
+  const definition: IWorkflowDefinition<Order, any, OrderEvent, OrderStatus> = {
     name: 'OrderWorkflow',
     states: {
       finals: [OrderStatus.Completed, OrderStatus.Failed],

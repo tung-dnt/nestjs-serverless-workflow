@@ -1,6 +1,6 @@
 import { Inject, Injectable, Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkflowDefinition, WorkflowModule, WorkflowService, Workflow } from '@/workflow';
+import { IWorkflowDefinition, WorkflowModule, WorkflowService, Workflow } from '@/workflow';
 
 export enum OrderEvent {
   Create = 'order.create',
@@ -28,7 +28,7 @@ export class Order {
 }
 
 const simpleDefinition = (entity: Order) => {
-  const definition: WorkflowDefinition<Order, any, OrderEvent, OrderStatus> = {
+  const definition: IWorkflowDefinition<Order, any, OrderEvent, OrderStatus> = {
     states: {
       finals: [OrderStatus.Completed, OrderStatus.Failed],
       idles: [OrderStatus.Pending, OrderStatus.Processing, OrderStatus.Completed, OrderStatus.Failed],
