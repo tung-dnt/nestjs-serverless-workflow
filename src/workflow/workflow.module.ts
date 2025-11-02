@@ -2,7 +2,7 @@ import { IBrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
 import { DynamicModule, Module, Provider } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import { StateRouterHelperFactory } from './router-helper.factory';
-import { StateRouter } from './router.service';
+import { StateRouter } from './ochestrator.service';
 import { IWorkflowEntity } from './types';
 
 @Module({})

@@ -1,5 +1,5 @@
 import { IWorkflowEvent } from '@/event-bus/types/workflow-event.interface';
-import { StateRouter } from '@/workflow/router.service';
+import { StateRouter } from '@/workflow/ochestrator.service';
 import { INestApplicationContext } from '@nestjs/common';
 import { SQSHandler } from 'aws-lambda';
 

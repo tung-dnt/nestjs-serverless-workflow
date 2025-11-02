@@ -2,7 +2,7 @@ import { Entity, item, number, string, Table, TransformedValue } from 'dynamodb-
 import { DocumentClient } from './client';
 
 export enum OrderState {
-  CREATED = 'created',
+  PENDING = 'pending',
   PROCESSING = 'processing',
   SHIPPED = 'shipped',
   CANCELLED = 'cancelled',
