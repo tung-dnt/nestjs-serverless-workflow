@@ -8,4 +8,3 @@ export enum OrderEvent {
 
 export const ORDER_WORKFLOW_ENTITY = 'entity.order';
 export const ORDER_WORKFLOW_BROKER = 'broker.order';
-export const ORDER_SAGA_HISTORY_STORE = 'saga.order.history';

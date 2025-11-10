@@ -1,41 +1,33 @@
-import { IBrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
+import { IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
 import { UnretriableException } from '@/exception/unretriable.exception';
+import {
+  getRetryKey,
+  IBackoffRetryConfig,
+  IRetryHandler,
+  IWorkflowDefinition,
+  IWorkflowEntity,
+  IWorkflowHandler,
+  IWorkflowRoute,
+  StateRouterHelperFactory,
+  TDefaultHandler,
+  WORKFLOW_DEFAULT_EVENT,
+  WORKFLOW_DEFINITION_KEY,
+  WORKFLOW_HANDLER_KEY,
+} from '@/workflow';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService, ModuleRef } from '@nestjs/core';
+import { SagaService } from './saga.service';
 
-import { WORKFLOW_DEFINITION_KEY, WORKFLOW_DEFAULT_EVENT, WORKFLOW_HANDLER_KEY } from './decorators';
-import { StateRouterHelperFactory } from './router.factory';
-import { IWorkflowEntity, IWorkflowHandler, IWorkflowDefinition } from './types';
-import { TDefaultHandler } from './types/default.interface';
-
-type WorkflowRoute = {
-  instance: any;
-  definition: IWorkflowDefinition<any, string, string>;
-  handlerName: string;
-  handler: (payload: any) => Promise<any>;
-  defaultHandler?: TDefaultHandler<any>;
-  entityService: IWorkflowEntity;
-  brokerPublisher: IBrokerPublisher;
-};
-/**
- * TODO:
- * 1. Declare workflow definition by service token (DONE using workflow discovery)
- * 2. Create `StateRouterSerivce` (DONE)
- * 3. Create `SagaService`
- * 4. Create `@OnCompensation`
- * 5. Handle workflow session recovery from failed states (PLAN: using SQS message filtering)
- * 6. Timeout handling (IN_PROGRESS)
- * 7. Error handling (DONE) -> migrate to BrokerPublisher.retry instead of SQS batchItemFailures
- */
 @Injectable()
 export class OchestratorService {
-  private routes = new Map<string, WorkflowRoute>();
+  private routes = new Map<string, IWorkflowRoute>();
   private readonly logger = new Logger(OchestratorService.name);
 
   constructor(
     private readonly discoveryService: DiscoveryService,
     private readonly routerHelperFactory: StateRouterHelperFactory,
     private readonly moduleRef: ModuleRef,
+    private readonly sagaService: SagaService,
   ) {}
 
   onModuleInit() {
@@ -45,9 +37,14 @@ export class OchestratorService {
       if (!instance || !instance.constructor) continue;
 
       const [workflowDefinition, handlerStore, defaultHandler] = [
-        Reflect.getMetadata(WORKFLOW_DEFINITION_KEY, instance.constructor) as IWorkflowDefinition<any, string, string>,
+        Reflect.getMetadata(WORKFLOW_DEFINITION_KEY, instance.constructor) as IWorkflowDefinition<
+          object,
+          string,
+          string
+        >,
         Reflect.getMetadata(WORKFLOW_HANDLER_KEY, instance.constructor) as IWorkflowHandler[],
-        Reflect.getMetadata(WORKFLOW_DEFAULT_EVENT, instance.constructor) as TDefaultHandler<any>,
+        Reflect.getMetadata(WORKFLOW_DEFAULT_EVENT, instance.constructor) as TDefaultHandler<object>,
+        [],
       ];
 
       if (!handlerStore || handlerStore.length === 0 || !workflowDefinition) {
@@ -56,9 +53,9 @@ export class OchestratorService {
       }
 
       const brokerPublisher = this.moduleRef.get<IBrokerPublisher>(workflowDefinition.brokerPublisher, {
-        strict: false,
+        strict: true,
       });
-      const entityService = this.moduleRef.get<IWorkflowEntity>(workflowDefinition.entityService, { strict: false });
+      const entityService = this.moduleRef.get<IWorkflowEntity>(workflowDefinition.entityService, { strict: true });
 
       for (const handler of handlerStore) {
         if (this.routes.has(handler.event)) {
@@ -66,11 +63,13 @@ export class OchestratorService {
             `Duplicate workflow event handler detected for event: ${handler.event} in workflow: ${workflowDefinition.name}`,
           );
         }
+        const retryConfig = this.moduleRef.get<IBackoffRetryConfig>(getRetryKey(handler.name));
         this.routes.set(handler.event, {
           handler: handler.handler,
           definition: workflowDefinition,
           instance,
           handlerName: handler.name,
+          retryConfig,
           defaultHandler,
           entityService,
           brokerPublisher,
@@ -80,10 +79,12 @@ export class OchestratorService {
     this.logger.log(`StateRouter initialized with ${this.routes.size} routes: `, Array.from(this.routes.keys()));
   }
 
-  async transit<P>(event: string, params: { urn: string | number; payload: P; attempt: number }) {
+  async transit(params: IWorkflowEvent) {
+    const { urn, payload, attempt, topic: event } = params;
+
     if (!this.routes.has(event)) throw new BadRequestException(`No workflow found for event: ${event}`);
 
-    const route = this.routes.get(event) as WorkflowRoute;
+    const route = this.routes.get(event) as IWorkflowRoute;
     const { definition, instance, defaultHandler, brokerPublisher, entityService } = route;
 
     if (!definition) {
@@ -95,13 +96,11 @@ export class OchestratorService {
 
     const logger = new Logger(`Router::${definition.name}`);
     const routerHelper = this.routerHelperFactory.create(event, entityService, definition, logger);
-    const { urn, payload, attempt } = params;
     logger.log(`Method ${route.handlerName} is being called with arguments:`, params);
 
     // ========================= BEGIN routing logic =========================
     let entity = await routerHelper.loadAndValidateEntity(urn);
     const entityStatus = entityService.status(entity);
-
     let transition = routerHelper.findValidTransition(entity, payload);
     let stepPayload = payload;
 
@@ -144,7 +143,19 @@ export class OchestratorService {
         }
 
         const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, currentRoute.handlerName);
-        stepPayload = await currentRoute.handler.apply(instance, args);
+
+        try {
+          stepPayload = await currentRoute.handler.apply(instance, args);
+        } catch (e) {
+          const retryConfig = currentRoute.retryConfig;
+          if (!retryConfig) throw e;
+
+          const { maxAttempts } = retryConfig;
+          if (e instanceof BadRequestException || e instanceof UnretriableException || attempt >= maxAttempts) throw e;
+
+          // TODO: add more payload: original method, payload, entity, retryConfigs
+          await this.moduleRef.get<IRetryHandler>(retryConfig.handler).execute();
+        }
 
         // Update entity status
         entity = await entityService.update(entity, transition.to);
@@ -168,25 +179,17 @@ export class OchestratorService {
 
         logger.log(`Next event: ${transition?.event ?? 'none'} Next status: ${updatedStatus} (${urn})`);
       }
-      // TODO: add runtime timeout calculator
     } catch (e) {
-      const maxAttempts = definition?.retry?.maxAttempts ?? 1;
       // NOTE: if max attempt reached or Unretriable error, set to failed status
-      if (e instanceof BadRequestException || e instanceof UnretriableException || attempt >= maxAttempts) {
-        await entityService.update(entity, definition.states.failed);
-        logger.error(`Transition failed. Setting status to failed (${e.message})`, urn);
-      } else {
-        if (!transition) {
-          logger.error(`No transition available to retry (${urn})`);
-          return;
-        }
-        const currentAttempt = attempt + 1;
-        // NOTE: retry by put current state back to broker
-        await brokerPublisher.retry(
-          { topic: transition.event, urn, attempt: currentAttempt, payload: stepPayload },
-          maxAttempts,
-        );
-      }
+      await entityService.update(entity, definition.states.failed);
+      logger.error(`Transition failed. Setting status to failed (${(e as Error).message})`, urn);
+
+      // TODO:
+      // 1. Handle compensation logic here for saga pattern
+      // 2. Handler Checkpointing for long-running tasks (Serverless)
+      //
+      // const compensations = this.sagaService.registerFailureSaga(definition, entity, e as Error);
+      // await this.sagaService.executeCompensations(compensations, entity, brokerPublisher);
     }
   }
 }

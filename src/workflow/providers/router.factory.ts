@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RouterService } from './router.service';
-import { IWorkflowEntity, IWorkflowDefinition } from './types';
+import { IWorkflowEntity, IWorkflowDefinition } from '../types';
 
 @Injectable()
 export class StateRouterHelperFactory {

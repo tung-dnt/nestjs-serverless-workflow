@@ -1,4 +1,8 @@
-import { TransitionEvent } from './transition-event.interface';
+import { IBrokerPublisher } from '@/event-bus';
+import { TDefaultHandler } from './default.interface';
+import { IWorkflowEntity } from './entity.interface';
+import { ITransitionEvent } from './transition-event.interface';
+import { IBackoffRetryConfig } from './retry.interface';
 
 /**
  * Defines the structure of a workflow definition, which includes the following properties:
@@ -7,7 +11,6 @@ import { TransitionEvent } from './transition-event.interface';
  * - `FailedState`: The state that represents a failed state in the workflow.
  * - `Transitions`: An array of transition events that define the allowed transitions between states.
  * - `Fallback`: An optional function that can be used as a fallback when a transition event is not defined.
- * - `Actions`: An optional array of action classes for workflow actions.
  * - `Conditions`: An optional array of condition functions.
  * - `Entity`: An optional entity service or configuration for loading/updating entities.
  */
@@ -18,13 +21,38 @@ export interface IWorkflowDefinition<T, Event, State> {
     idles: State[];
     failed: State;
   };
-  transitions: TransitionEvent<T, Event, State>[];
+  transitions: ITransitionEvent<T, Event, State>[];
   conditions?: (<P>(entity: T, payload?: P | T | object | string) => boolean)[];
-  // TODO: When serverless function about to timeout, register thsis callback to checkpoint current entity state
+
+  /**
+   * TODO: When serverless function about to timeout, register thsis callback to checkpoint current entity state
+   */
   onTimeout?: (<P>(entity: T, event: Event, payload?: P | T | object | string) => Promise<any>)[];
+
+  /**
+   * Injection token refer to entity services that implements IWorkflowEntity<T>
+   */
   entityService: string;
+
+  /**
+   * Injection token refer to broker publisher that implements IBrokerPublisher
+   */
   brokerPublisher: string;
-  retry?: {
-    maxAttempts?: number;
+  consistency?: {
+    enabled: boolean;
+    mode: 'saga' | '2pc';
+    rollbackStrategy?: 'compensate' | 'reverse' | 'parallel';
+    timeout?: number;
   };
+}
+
+export interface IWorkflowRoute {
+  instance: any;
+  definition: IWorkflowDefinition<any, string, string>;
+  handlerName: string;
+  handler: (payload: any) => Promise<any>;
+  defaultHandler?: TDefaultHandler<any>;
+  entityService: IWorkflowEntity;
+  brokerPublisher: IBrokerPublisher;
+  retryConfig?: IBackoffRetryConfig;
 }

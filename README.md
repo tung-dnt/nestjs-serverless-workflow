@@ -118,17 +118,17 @@ npm install && npm run demo
 You'll see an interactive workflow visualization like this:
 
 ```
-╔══════════════╗     ┌──────────────┐     ┌──────────────┐
+╔══════════════╗     ┌──────────────┐     ┌────────────────┐
 ║  REGISTERED  ║ --> │EMAIL_VERIFIED│ --> │PROFILE_COMPLETE│
-╚══════════════╝     └──────────────┘     └──────────────┘
-      (current)            ↓                      ↓
-                    ┌──────────────┐     ┌──────────────┐
-                    │   SUSPENDED  │     │IDENTITY_VERIFIED│
-                    └──────────────┘     └──────────────┘
-                                               ↓
-                                         ╔══════════╗
-                                         ║  ACTIVE  ║
-                                         ╚══════════╝
+╚══════════════╝     └──────────────┘     └────────────────┘
+   (current)                ↓                      ↓
+                    ┌──────────────┐      ┌─────────────────┐
+                    │   SUSPENDED  │      │IDENTITY_VERIFIED│
+                    └──────────────┘      └─────────────────┘
+                                                   ↓
+                                             ╔══════════╗
+                                             ║  ACTIVE  ║
+                                             ╚══════════╝
 ```
 
 **[🚀 Explore All Examples](https://github.com/@nestjs-serverless-workflow-examples)**

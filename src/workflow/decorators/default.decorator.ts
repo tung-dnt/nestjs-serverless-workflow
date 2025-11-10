@@ -1,4 +1,4 @@
-import { WORKFLOW_DEFAULT_EVENT } from './workflow.decorator';
+export const WORKFLOW_DEFAULT_EVENT = 'workflow.default';
 
 export const OnDefault = (target: any, _propertyKey: string, descriptor: PropertyDescriptor) => {
   let existingFallback = Reflect.getMetadata(WORKFLOW_DEFAULT_EVENT, target.constructor);

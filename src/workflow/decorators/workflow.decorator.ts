@@ -1,9 +1,9 @@
 import { IWorkflowDefinition } from '@/workflow/types/workflow-definition.interface';
 import { IWorkflowHandler } from '../types/handler-store.interface';
+import { WORKFLOW_DEFAULT_EVENT } from './default.decorator';
+import { WORKFLOW_HANDLER_KEY } from './event.decorator';
 
-export const WORKFLOW_HANDLER_KEY = 'workflow:metadata';
 export const WORKFLOW_DEFINITION_KEY = 'workflow:definition';
-export const WORKFLOW_DEFAULT_EVENT = 'workflow.default';
 
 export function Workflow<T, Event, State>(definition: IWorkflowDefinition<T, Event, State>) {
   return function <T extends { new (...args: any[]): {} }>(instance: T) {

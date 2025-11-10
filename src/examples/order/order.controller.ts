@@ -1,5 +1,4 @@
-import { IWorkflowEntity } from '@/workflow';
-import { OchestratorService } from '@/workflow/ochestrator.service';
+import { IWorkflowEntity, OchestratorService } from '@/workflow';
 import { Controller, Inject, Post } from '@nestjs/common';
 
 import { ORDER_WORKFLOW_ENTITY, OrderEvent } from './order.constant';
@@ -14,7 +13,7 @@ export class OrderController {
   @Post()
   async createEntity() {
     const entity = await this.entity.create();
-    this.router.transit(OrderEvent.CREATED, { urn: entity.id, attempt: 0, payload: { approved: true } }); // auto-approve for demo
+    this.router.transit({ topic: OrderEvent.CREATED, urn: entity.id, attempt: 0, payload: { approved: true } }); // auto-approve for demo
     return entity;
   }
 }

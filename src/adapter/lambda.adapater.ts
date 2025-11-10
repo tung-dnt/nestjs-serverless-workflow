@@ -1,5 +1,5 @@
-import { IWorkflowEvent } from '@/event-bus/types/workflow-event.interface';
-import { OchestratorService } from '@/workflow/ochestrator.service';
+import { IWorkflowEvent } from '@/event-bus';
+import { OchestratorService } from '@/workflow';
 import { INestApplicationContext } from '@nestjs/common';
 import { SQSHandler } from 'aws-lambda';
 
@@ -33,14 +33,9 @@ export const LambdaEventHandler =
           console.log('processing record ', i + 1);
           console.log(event);
 
-          const { topic, urn, payload, attempt } = event;
           // Race between processing and shutdown
           await Promise.race([
-            workflowRouter.transit(topic, {
-              urn,
-              payload,
-              attempt,
-            }),
+            workflowRouter.transit(event),
             shutdownPromise.then(() => {
               console.log('Shutdown promise...');
               // If we're shutting down and this promise hasn't completed,

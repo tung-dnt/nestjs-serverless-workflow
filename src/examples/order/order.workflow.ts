@@ -3,7 +3,7 @@ import { Entity, OnDefault, OnEvent, Payload, Workflow } from '@/workflow';
 import { Inject, Logger } from '@nestjs/common';
 
 import { Order, OrderState } from '../dynamodb/order.table';
-import { ORDER_SAGA_HISTORY_STORE, ORDER_WORKFLOW_BROKER, ORDER_WORKFLOW_ENTITY, OrderEvent } from './order.constant';
+import { ORDER_WORKFLOW_BROKER, ORDER_WORKFLOW_ENTITY, OrderEvent } from './order.constant';
 
 @Workflow<Order, OrderEvent, OrderState>({
   name: 'OrderWorkflow',
@@ -33,10 +33,6 @@ import { ORDER_SAGA_HISTORY_STORE, ORDER_WORKFLOW_BROKER, ORDER_WORKFLOW_ENTITY,
   ],
   retry: {
     maxAttempts: 3,
-  },
-  sagaMode: {
-    historyStore: ORDER_SAGA_HISTORY_STORE,
-    recoveryMode: 'last-successful', // or 'full-replay'
   },
   entityService: ORDER_WORKFLOW_ENTITY,
   brokerPublisher: ORDER_WORKFLOW_BROKER,

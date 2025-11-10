@@ -1,5 +1,5 @@
 import { BadRequestException, Logger } from '@nestjs/common';
-import { IWorkflowEntity, TransitionEvent, IWorkflowDefinition } from './types';
+import { IWorkflowEntity, ITransitionEvent, IWorkflowDefinition } from '../types';
 
 export class RouterService<T, Event, State> {
   constructor(
@@ -30,7 +30,7 @@ export class RouterService<T, Event, State> {
     entity: T,
     payload: P,
     options?: { skipEventCheck?: boolean },
-  ): TransitionEvent<T, Event, State> | null {
+  ): ITransitionEvent<T, Event, State> | null {
     const currentStatus = this.entityService.status(entity);
     const possibleNextTransitionSet = new Set<State>();
 

@@ -1,8 +1,8 @@
-import { IBrokerPublisher } from '@/event-bus/types/broker-publisher.interface';
+import { IBrokerPublisher } from '@/event-bus';
+import { OchestratorService, StateRouterHelperFactory } from '@/workflow';
 import { DynamicModule, Module, Provider } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
-import { StateRouterHelperFactory } from './router.factory';
-import { OchestratorService } from './ochestrator.service';
+
 import { IWorkflowEntity } from './types';
 
 @Module({})

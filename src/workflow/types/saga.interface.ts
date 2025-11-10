@@ -1,41 +1,4 @@
-/**
- * SAGA pattern interfaces for implementing distributed transaction consistency
- * with compensation-based rollback mechanisms in workflow definitions.
- */
-
-export interface CompensationHandler<T = any, P = any> {
-  /**
-   * Unique identifier for the compensation handler
-   */
-  id: string;
-
-  /**
-   * The compensation function to execute during rollback
-   */
-  compensate: (context: SagaContext<T>, payload?: P) => Promise<void>;
-
-  /**
-   * Optional timeout for compensation execution (in milliseconds)
-   */
-  timeout?: number;
-
-  /**
-   * Whether this compensation is critical - if true, rollback fails if compensation fails
-   */
-  critical?: boolean;
-
-  /**
-   * Number of retry attempts for compensation
-   */
-  retries?: number;
-}
-
 export interface SagaStep<T = any, P = any> {
-  /**
-   * Step identifier
-   */
-  stepId: string;
-
   /**
    * The original event that triggered this step
    */
@@ -49,22 +12,17 @@ export interface SagaStep<T = any, P = any> {
   /**
    * The entity state before this step
    */
-  beforeState: any;
+  beforeState: T;
 
   /**
    * The entity state after this step
    */
-  afterState: any;
+  afterState: T;
 
   /**
    * Payload used for this step
    */
   payload?: P;
-
-  /**
-   * Compensation handler for this step
-   */
-  compensationHandler?: CompensationHandler<T, P>;
 
   /**
    * Whether this step has been compensated
@@ -122,21 +80,14 @@ export enum SagaStatus {
   FAILED = 'failed',
 }
 
+/**
+ * NOTE: used in decorator
+ */
 export interface SagaRollbackRule<T = any> {
   /**
    * Condition that triggers this rollback rule
    */
   condition: (error: Error, context: SagaContext<T>) => boolean;
-
-  /**
-   * Strategy for rollback execution
-   */
-  strategy: RollbackStrategy;
-
-  /**
-   * Custom compensation handlers to execute (overrides step-level handlers)
-   */
-  customCompensations?: CompensationHandler<T>[];
 
   /**
    * Whether to stop on first compensation failure
@@ -160,35 +111,30 @@ export enum RollbackStrategy {
    */
   PARALLEL = 'parallel',
 
-  /**
-   * Custom strategy using provided compensation handlers
+  /* *
+   * Exucute compensations in the order of execution
    */
-  CUSTOM = 'custom',
-
-  /**
-   * No rollback - just mark as failed
-   */
-  NO_ROLLBACK = 'no_rollback',
+  IN_ORDER = 'in_order',
 }
 
 /**
  * SAGA configuration that can be added to workflow definitions
  */
-export interface SagaConfig<T = any> {
+export interface SagaConfig {
   /**
    * Enable SAGA pattern for this workflow
    */
   enabled: boolean;
 
   /**
-   * Global rollback rules that apply to all transitions
+   * Selective mode, for type-safe purposes
    */
-  globalRollbackRules?: SagaRollbackRule<T>[];
+  mode: 'saga';
 
   /**
-   * Default rollback strategy if no specific rules match
+   * Rollback strategy if no specific rules match
    */
-  defaultRollbackStrategy?: RollbackStrategy;
+  rollbackStrategy?: RollbackStrategy;
 
   /**
    * Maximum time to wait for SAGA completion
@@ -196,26 +142,9 @@ export interface SagaConfig<T = any> {
   timeout?: number;
 
   /**
-   * Custom SAGA context persistence strategy
-   */
-  persistenceStrategy?: 'memory' | 'database' | 'external';
-
-  /**
    * Custom SAGA ID generator
    */
   sagaIdGenerator?: () => string;
-}
-
-/**
- * Events emitted during SAGA execution
- */
-export interface SagaEvents {
-  'saga.started': { sagaId: string; context: SagaContext };
-  'saga.step.executed': { sagaId: string; step: SagaStep };
-  'saga.rollback.started': { sagaId: string; reason: string };
-  'saga.step.compensated': { sagaId: string; stepId: string };
-  'saga.completed': { sagaId: string; context: SagaContext };
-  'saga.failed': { sagaId: string; error: Error; context: SagaContext };
 }
 
 export interface ISagaHistoryStore<T = any> {

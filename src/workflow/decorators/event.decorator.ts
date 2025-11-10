@@ -1,5 +1,6 @@
 import { IWorkflowHandler } from '../types/handler-store.interface';
-import { WORKFLOW_HANDLER_KEY } from './workflow.decorator';
+
+export const WORKFLOW_HANDLER_KEY = 'workflow:metadata';
 
 export const OnEvent =
   <T, State = string>(event: string) =>
