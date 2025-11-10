@@ -1,5 +1,5 @@
 import { IBrokerPublisher } from '@/event-bus';
-import { OchestratorService, StateRouterHelperFactory } from '@/workflow';
+import { OrchestratorService, StateRouterHelperFactory } from '@/workflow';
 import { DynamicModule, Module, Provider } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 
@@ -16,7 +16,7 @@ export class WorkflowModule {
   }): DynamicModule {
     const { imports, entities, workflows, brokers } = options;
 
-    const providers = [...entities, ...workflows, ...brokers, StateRouterHelperFactory, OchestratorService];
+    const providers = [...entities, ...workflows, ...brokers, StateRouterHelperFactory, OrchestratorService];
 
     return {
       module: WorkflowModule,

@@ -18,10 +18,26 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService, ModuleRef } from '@nestjs/core';
 import { SagaService } from './saga.service';
 
+/**
+ * TODO:
+ * 1. SAGA: SAGA transaction will update history storage each transition, history service is implemented from `ISagaHistoryStore`
+ *   +) If reverese order, execute compensations in reverse order
+ *   +) If in-order, execute compensations in order
+ *   +) If parallel, execute compensations in parallel
+ * 2. Replay workflow:
+ *   +) If compensation in-progress, execute compensation first
+ *   +) If compensation completed, start from start state
+ *   +) If no compensation and transaction is failed, start from last failed state
+ *   +) If no compensation and transaction is completed, throw error
+ * 3. Checkpointing for long-running tasks (Serverless)
+ *   +) Handle serverless function timeout, store current entity state to checkpoint broker via `BrokerPublisher`
+ *   +) BrokerPublisher.publish will implement delay queue via time calculated from RetryService.execute()
+ * 4. Timeout handling: listen for timeout event emitted by Runtime Adapter
+ */
 @Injectable()
-export class OchestratorService {
+export class OrchestratorService {
   private routes = new Map<string, IWorkflowRoute>();
-  private readonly logger = new Logger(OchestratorService.name);
+  private readonly logger = new Logger(OrchestratorService.name);
 
   constructor(
     private readonly discoveryService: DiscoveryService,
@@ -183,11 +199,6 @@ export class OchestratorService {
       // NOTE: if max attempt reached or Unretriable error, set to failed status
       await entityService.update(entity, definition.states.failed);
       logger.error(`Transition failed. Setting status to failed (${(e as Error).message})`, urn);
-
-      // TODO:
-      // 1. Handle compensation logic here for saga pattern
-      // 2. Handler Checkpointing for long-running tasks (Serverless)
-      //
       // const compensations = this.sagaService.registerFailureSaga(definition, entity, e as Error);
       // await this.sagaService.executeCompensations(compensations, entity, brokerPublisher);
     }

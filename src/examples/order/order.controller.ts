@@ -1,4 +1,4 @@
-import { IWorkflowEntity, OchestratorService } from '@/workflow';
+import { IWorkflowEntity, OrchestratorService } from '@/workflow';
 import { Controller, Inject, Post } from '@nestjs/common';
 
 import { ORDER_WORKFLOW_ENTITY, OrderEvent } from './order.constant';
@@ -7,7 +7,7 @@ import { ORDER_WORKFLOW_ENTITY, OrderEvent } from './order.constant';
 export class OrderController {
   constructor(
     @Inject(ORDER_WORKFLOW_ENTITY) private readonly entity: IWorkflowEntity,
-    private readonly router: OchestratorService,
+    private readonly router: OrchestratorService,
   ) {}
 
   @Post()
