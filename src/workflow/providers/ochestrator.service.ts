@@ -4,12 +4,15 @@ import {
   getRetryKey,
   IBackoffRetryConfig,
   IRetryHandler,
+  ISagaHistoryStore,
   IWorkflowDefinition,
   IWorkflowEntity,
   IWorkflowHandler,
-  IWorkflowRoute,
+  IWorkflowDefaultRoute,
+  IWorkflowRouteWithSaga,
   StateRouterHelperFactory,
   TDefaultHandler,
+  TEither,
   WORKFLOW_DEFAULT_EVENT,
   WORKFLOW_DEFINITION_KEY,
   WORKFLOW_HANDLER_KEY,
@@ -32,11 +35,13 @@ import { SagaService } from './saga.service';
  * 3. Checkpointing for long-running tasks (Serverless)
  *   +) Handle serverless function timeout, store current entity state to checkpoint broker via `BrokerPublisher`
  *   +) BrokerPublisher.publish will implement delay queue via time calculated from RetryService.execute()
- * 4. Timeout handling: listen for timeout event emitted by Runtime Adapter
+ * 4. Retry Service: Retry in state handler level via `IRetryHandler`
+ *   +) If CompensationHandler
+ * 5. Timeout handling: listen for timeout event emitted by Runtime Adapter
  */
 @Injectable()
 export class OrchestratorService {
-  private routes = new Map<string, IWorkflowRoute>();
+  private routes = new Map<string, TEither<IWorkflowDefaultRoute, IWorkflowRouteWithSaga>>();
   private readonly logger = new Logger(OrchestratorService.name);
 
   constructor(
@@ -72,6 +77,11 @@ export class OrchestratorService {
         strict: true,
       });
       const entityService = this.moduleRef.get<IWorkflowEntity>(workflowDefinition.entityService, { strict: true });
+      const historyService = workflowDefinition.saga
+        ? this.moduleRef.get<ISagaHistoryStore>(workflowDefinition.saga.historyService, {
+            strict: true,
+          })
+        : undefined;
 
       for (const handler of handlerStore) {
         if (this.routes.has(handler.event)) {
@@ -89,6 +99,7 @@ export class OrchestratorService {
           defaultHandler,
           entityService,
           brokerPublisher,
+          historyService,
         });
       }
     }
@@ -98,10 +109,9 @@ export class OrchestratorService {
   async transit(params: IWorkflowEvent) {
     const { urn, payload, attempt, topic: event } = params;
 
-    if (!this.routes.has(event)) throw new BadRequestException(`No workflow found for event: ${event}`);
-
-    const route = this.routes.get(event) as IWorkflowRoute;
-    const { definition, instance, defaultHandler, brokerPublisher, entityService } = route;
+    const route = this.routes.get(event);
+    if (!route) throw new BadRequestException(`No workflow found for event: ${event}`);
+    const { definition, instance, defaultHandler, brokerPublisher, entityService, historyService } = route;
 
     if (!definition) {
       const className = instance.name;
@@ -157,13 +167,12 @@ export class OrchestratorService {
         if (!currentRoute) {
           throw new BadRequestException(`No handler found for event: ${currentEvent}`);
         }
-
-        const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, currentRoute.handlerName);
+        const { handlerName, handler, retryConfig, sagaConfig } = currentRoute;
+        const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, handlerName);
 
         try {
-          stepPayload = await currentRoute.handler.apply(instance, args);
+          stepPayload = await handler.apply(instance, args);
         } catch (e) {
-          const retryConfig = currentRoute.retryConfig;
           if (!retryConfig) throw e;
 
           const { maxAttempts } = retryConfig;
@@ -196,7 +205,6 @@ export class OrchestratorService {
         logger.log(`Next event: ${transition?.event ?? 'none'} Next status: ${updatedStatus} (${urn})`);
       }
     } catch (e) {
-      // NOTE: if max attempt reached or Unretriable error, set to failed status
       await entityService.update(entity, definition.states.failed);
       logger.error(`Transition failed. Setting status to failed (${(e as Error).message})`, urn);
       // const compensations = this.sagaService.registerFailureSaga(definition, entity, e as Error);

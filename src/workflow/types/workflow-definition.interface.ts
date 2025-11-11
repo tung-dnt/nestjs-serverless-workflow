@@ -1,8 +1,12 @@
 import { IBrokerPublisher } from '@/event-bus';
-import { TDefaultHandler } from './default.interface';
-import { IWorkflowEntity } from './entity.interface';
-import { ITransitionEvent } from './transition-event.interface';
-import { IBackoffRetryConfig } from './retry.interface';
+import {
+  IBackoffRetryConfig,
+  ISagaConfig,
+  ISagaHistoryStore,
+  ISagaRollbackRule,
+  ITransitionEvent,
+  IWorkflowEntity,
+} from '@/workflow';
 
 /**
  * Defines the structure of a workflow definition, which includes the following properties:
@@ -38,15 +42,14 @@ export interface IWorkflowDefinition<T, Event, State> {
    * Injection token refer to broker publisher that implements IBrokerPublisher
    */
   brokerPublisher: string;
-  consistency?: {
-    enabled: boolean;
-    mode: 'saga' | '2pc';
-    rollbackStrategy?: 'compensate' | 'reverse' | 'parallel';
-    timeout?: number;
-  };
+
+  /**
+   * Workflow saga configuration
+   */
+  saga?: ISagaConfig;
 }
 
-export interface IWorkflowRoute {
+export interface IWorkflowDefaultRoute {
   instance: any;
   definition: IWorkflowDefinition<any, string, string>;
   handlerName: string;
@@ -56,3 +59,21 @@ export interface IWorkflowRoute {
   brokerPublisher: IBrokerPublisher;
   retryConfig?: IBackoffRetryConfig;
 }
+
+export interface IWorkflowRouteWithSaga extends IWorkflowDefaultRoute {
+  sagaConfig?: ISagaRollbackRule;
+  historyService?: ISagaHistoryStore;
+}
+
+export interface IWorkflowHandler {
+  event: string;
+  name: string;
+  handler: (payload: any) => Promise<any>;
+  sagaConfig?: ISagaRollbackRule;
+}
+
+export type TDefaultHandler<T, Event = string> = <P>(
+  entity: T,
+  event: Event,
+  payload?: P | T | object | string,
+) => Promise<T>;

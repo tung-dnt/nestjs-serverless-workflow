@@ -83,11 +83,11 @@ export enum SagaStatus {
 /**
  * NOTE: used in decorator
  */
-export interface SagaRollbackRule<T = any> {
+export interface ISagaRollbackRule<T = any> {
   /**
    * Condition that triggers this rollback rule
    */
-  condition: (error: Error, context: SagaContext<T>) => boolean;
+  condition?: (error: Error, context: SagaContext<T>) => boolean;
 
   /**
    * Whether to stop on first compensation failure
@@ -120,7 +120,7 @@ export enum RollbackStrategy {
 /**
  * SAGA configuration that can be added to workflow definitions
  */
-export interface SagaConfig {
+export interface ISagaConfig {
   /**
    * Enable SAGA pattern for this workflow
    */
@@ -134,12 +134,23 @@ export interface SagaConfig {
   /**
    * Rollback strategy if no specific rules match
    */
-  rollbackStrategy?: RollbackStrategy;
+  rollbackStrategy: RollbackStrategy;
 
   /**
    * Maximum time to wait for SAGA completion
+   * DEFAULT: 30000 ms
    */
   timeout?: number;
+
+  /**
+   *
+   */
+  failFast?: boolean;
+
+  /**
+   * Injection token refer to saga history service that implements ISagaHistoryStore<T>
+   */
+  historyService: string;
 
   /**
    * Custom SAGA ID generator

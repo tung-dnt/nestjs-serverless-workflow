@@ -31,9 +31,6 @@ import { ORDER_WORKFLOW_BROKER, ORDER_WORKFLOW_ENTITY, OrderEvent } from './orde
       conditions: [(_entity) => false], // can't cancel if already shipped
     },
   ],
-  retry: {
-    maxAttempts: 3,
-  },
   entityService: ORDER_WORKFLOW_ENTITY,
   brokerPublisher: ORDER_WORKFLOW_BROKER,
 })
