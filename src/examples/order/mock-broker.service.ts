@@ -1,4 +1,4 @@
-import { IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
+import type { IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
 import { Injectable, Logger } from '@nestjs/common';
 
 /**

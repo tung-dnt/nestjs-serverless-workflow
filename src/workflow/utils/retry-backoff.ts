@@ -1,4 +1,4 @@
-import { RetryStrategy, IBackoffRetryConfig } from '../types';
+import { RetryStrategy, type IBackoffRetryConfig } from '../types';
 
 /**
  * Calculate delay for retry attempt using exponential backoff with optional jitter

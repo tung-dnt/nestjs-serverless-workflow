@@ -1,6 +1,6 @@
 import { Inject, Injectable, Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { IWorkflowDefinition, WorkflowModule, WorkflowService, Workflow } from '@/workflow';
+import { type IWorkflowDefinition, WorkflowModule,  WorkflowService, Workflow } from '@/workflow';
 
 export enum OrderEvent {
   Create = 'order.create',

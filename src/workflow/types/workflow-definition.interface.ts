@@ -1,5 +1,5 @@
-import { IBrokerPublisher } from '@/event-bus';
-import {
+import type { IBrokerPublisher } from '@/event-bus';
+import type {
   IBackoffRetryConfig,
   ISagaConfig,
   ISagaHistoryStore,
@@ -53,7 +53,7 @@ export interface IWorkflowDefaultRoute {
   instance: any;
   definition: IWorkflowDefinition<any, string, string>;
   handlerName: string;
-  handler: (payload: any) => Promise<any>;
+  handler: (...payload: any[]) => Promise<any>;
   defaultHandler?: TDefaultHandler<any>;
   entityService: IWorkflowEntity;
   brokerPublisher: IBrokerPublisher;
@@ -68,7 +68,7 @@ export interface IWorkflowRouteWithSaga extends IWorkflowDefaultRoute {
 export interface IWorkflowHandler {
   event: string;
   name: string;
-  handler: (payload: any) => Promise<any>;
+  handler: (...payload: any[]) => Promise<any>;
   sagaConfig?: ISagaRollbackRule;
 }
 

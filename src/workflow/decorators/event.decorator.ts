@@ -1,25 +1,22 @@
-import { ISagaConfig, IWorkflowHandler } from '@/workflow';
+import type { ISagaConfig, IWorkflowHandler } from '@/workflow';
 
 export const WORKFLOW_HANDLER_KEY = 'workflow:metadata';
 
-export const OnEvent =
-  <T, State = string>(event: string) =>
-  (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
-    let workflowHandlers: IWorkflowHandler[] = Reflect.getMetadata(WORKFLOW_HANDLER_KEY, target.constructor);
+export const OnEvent = (event: string) => (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+  let workflowHandlers: IWorkflowHandler[] = Reflect.getMetadata(WORKFLOW_HANDLER_KEY, target.constructor);
 
-    if (!workflowHandlers) {
-      workflowHandlers = [];
-      Reflect.defineMetadata(WORKFLOW_HANDLER_KEY, workflowHandlers, target.constructor);
-    }
+  if (!workflowHandlers) {
+    workflowHandlers = [];
+    Reflect.defineMetadata(WORKFLOW_HANDLER_KEY, workflowHandlers, target.constructor);
+  }
 
-    workflowHandlers.push({ event, handler: descriptor.value, name: propertyKey });
+  workflowHandlers.push({ event, handler: descriptor.value, name: propertyKey });
 
-    return descriptor;
-  };
+  return descriptor;
+};
 
 export const OnCompensation =
-  <T, State = string>(event: string, config: ISagaConfig) =>
-  (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+  (event: string, config: ISagaConfig) => (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
     let workflowHandlers: IWorkflowHandler[] = Reflect.getMetadata(WORKFLOW_HANDLER_KEY, target.constructor);
 
     if (!workflowHandlers) {

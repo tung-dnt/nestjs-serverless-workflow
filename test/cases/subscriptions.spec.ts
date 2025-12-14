@@ -4,8 +4,9 @@ import { Global, Injectable, Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EntityService, IWorkflowDefinition, WorkflowModule, WorkflowService } from '@/workflow';
 import Stripe from 'stripe';
+import { spyOn } from 'bun:test';
 
-export class Subscription {
+export interface Subscription {
   email: string;
   stripeCustomerId: string;
   subscriptionId: string;
@@ -721,7 +722,7 @@ describe('Stripe Subscription Workflow', () => {
 
     it('should handle repository errors', async () => {
       // Mock repository update to throw an error
-      jest.spyOn(repository, 'update').mockImplementationOnce(() => {
+      spyOn(repository, 'update').mockImplementationOnce(() => {
         throw new Error('Database error');
       });
 

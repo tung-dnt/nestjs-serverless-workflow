@@ -1,8 +1,9 @@
-import { IBrokerPublisher } from '@/event-bus';
+import type { IBrokerPublisher } from '@/event-bus';
 import { Entity, OnDefault, OnEvent, Payload, Workflow } from '@/workflow';
 import { Inject, Logger } from '@nestjs/common';
 
-import { Order, OrderState } from '../dynamodb/order.table';
+import type { Order } from '../dynamodb/order.table';
+import { OrderState } from '../dynamodb/order.table';
 import { ORDER_WORKFLOW_BROKER, ORDER_WORKFLOW_ENTITY, OrderEvent } from './order.constant';
 
 @Workflow<Order, OrderEvent, OrderState>({

@@ -1,5 +1,5 @@
 import { BadRequestException, Logger } from '@nestjs/common';
-import { IWorkflowEntity, ITransitionEvent, IWorkflowDefinition } from '../types';
+import type { IWorkflowEntity, ITransitionEvent, IWorkflowDefinition } from '../types';
 
 export class RouterService<T, Event, State> {
   constructor(

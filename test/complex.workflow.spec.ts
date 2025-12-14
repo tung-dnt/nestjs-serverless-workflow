@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { IWorkflowDefinition, WorkflowService } from '@/workflow';
 import { ModuleRef } from '@nestjs/core';
+import { mock } from 'bun:test';
 
 // Define test enums and classes
 enum TestEvent {
@@ -47,7 +48,7 @@ describe('Complex Workflow Transitions', () => {
         {
           provide: ModuleRef,
           useValue: {
-            get: jest.fn().mockReturnValue(null),
+            get: mock().mockReturnValue(null),
           },
         },
       ],

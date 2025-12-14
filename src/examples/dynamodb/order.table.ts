@@ -1,4 +1,4 @@
-import { Entity, item, number, string, Table, TransformedValue } from 'dynamodb-toolbox';
+import { Entity, item, number, string, Table, type TransformedValue } from 'dynamodb-toolbox';
 import { DocumentClient } from './client';
 
 export enum OrderState {

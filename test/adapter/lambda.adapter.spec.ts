@@ -1,4 +1,5 @@
 import { LambdaEventHandler } from '@/adapter/lambda.adapater';
+import { mock } from 'bun:test';
 
 describe('LambdaEventHandler (SQS)', () => {
   const makeSqsEvent = (records: Array<{ messageId: string; body: string }>) =>
@@ -11,23 +12,20 @@ describe('LambdaEventHandler (SQS)', () => {
 
   const makeContext = (remainingMs: number) =>
     ({
-      getRemainingTimeInMillis: jest.fn(() => remainingMs),
+      getRemainingTimeInMillis: mock(() => remainingMs),
     }) as any;
 
-  let eventEmitterMock: { emitAsync: jest.Mock };
-  let appMock: { get: jest.Mock };
+  let eventEmitterMock: { emitAsync: ReturnType<typeof mock> };
+  let appMock: { get: ReturnType<typeof mock> };
 
   beforeEach(() => {
     eventEmitterMock = {
-      emitAsync: jest.fn(),
+      emitAsync: mock(),
     };
 
     appMock = {
-      get: jest.fn().mockImplementation(() => eventEmitterMock),
+      get: mock().mockImplementation(() => eventEmitterMock),
     } as any;
-
-    jest.clearAllMocks();
-    jest.useRealTimers();
   });
 
   it('should process all messages successfully and return empty batchItemFailures', async () => {
@@ -121,7 +119,8 @@ describe('LambdaEventHandler (SQS)', () => {
 
   it('should gracefully shutdown and mark in-flight messages for retry when time is up', async () => {
     // Arrange
-    jest.useFakeTimers({ legacyFakeTimers: false });
+    const { useFakeTimers, advanceTimersByTime } = await import('bun:test');
+    useFakeTimers();
 
     const handler = LambdaEventHandler(appMock as any);
     const event = makeSqsEvent([
@@ -147,14 +146,12 @@ describe('LambdaEventHandler (SQS)', () => {
 
     // Trigger the shutdown timer (1ms)
     await Promise.resolve(); // ensure any pending microtasks run before timers
-    jest.advanceTimersByTime(1);
+    advanceTimersByTime(1);
 
     const result = await promise;
 
     // Assert
     expect(eventEmitterMock.emitAsync).toHaveBeenCalledTimes(1);
     expect((result as any).batchItemFailures).toEqual([{ itemIdentifier: 'slow-msg' }]);
-
-    jest.useRealTimers();
   });
 });

@@ -1,4 +1,4 @@
-export interface SagaStep<T = any, P = any> {
+export interface ISagaStep<T = any, P = any> {
   /**
    * The original event that triggered this step
    */
@@ -44,7 +44,7 @@ export interface SagaContext<T = any> {
   /**
    * List of executed steps in chronological order
    */
-  executedSteps: SagaStep<T>[];
+  executedSteps: ISagaStep<T>[];
 
   /**
    * Current SAGA status

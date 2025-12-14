@@ -1,4 +1,4 @@
-import { IBackoffRetryConfig } from '../types';
+import { type IBackoffRetryConfig } from '../types';
 
 const WITH_RETRY_KEY = 'workflow:retry';
 

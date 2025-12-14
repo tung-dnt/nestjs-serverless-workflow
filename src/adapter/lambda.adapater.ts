@@ -1,7 +1,7 @@
-import { IWorkflowEvent } from '@/event-bus';
+import { type IWorkflowEvent } from '@/event-bus';
 import { OrchestratorService } from '@/workflow';
-import { INestApplicationContext } from '@nestjs/common';
-import { SQSHandler } from 'aws-lambda';
+import { type INestApplicationContext } from '@nestjs/common';
+import { type SQSHandler } from 'aws-lambda';
 
 export const LambdaEventHandler =
   (app: INestApplicationContext): SQSHandler =>

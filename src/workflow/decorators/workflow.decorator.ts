@@ -1,4 +1,4 @@
-import { IWorkflowDefinition } from '@/workflow';
+import { type IWorkflowDefinition } from '@/workflow';
 
 export const WORKFLOW_DEFINITION_KEY = 'workflow:definition';
 

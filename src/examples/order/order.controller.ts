@@ -1,4 +1,5 @@
-import { IWorkflowEntity, OrchestratorService } from '@/workflow';
+import type { IWorkflowEntity } from '@/workflow';
+import { OrchestratorService } from '@/workflow';
 import { Controller, Inject, Post } from '@nestjs/common';
 
 import { ORDER_WORKFLOW_ENTITY, OrderEvent } from './order.constant';

@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { SQSHandler } from 'aws-lambda';
+import { type SQSHandler } from 'aws-lambda';
 
 import { LambdaEventHandler } from './adapter/lambda.adapater';
 import { OrderModule } from './examples/order/order.module';

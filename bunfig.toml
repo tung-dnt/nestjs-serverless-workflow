@@ -1,0 +1,19 @@
+[test]
+# Set the root directory for tests
+root = "./test"
+
+# Preload reflect-metadata for NestJS support
+preload = ["reflect-metadata"]
+
+# Configure coverage
+coverage = true
+coverageDir = "./coverage"
+
+# Test timeout (30 seconds)
+timeout = 30000
+
+# Make tests run in a more Jest-compatible mode
+smol = false
+
+# Note: Bun automatically reads path aliases from tsconfig.json
+
