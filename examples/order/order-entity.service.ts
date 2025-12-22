@@ -1,9 +1,9 @@
-import { IWorkflowEntity } from '@/workflow';
+import type { IWorkflowEntity } from '@/workflow';
 import { Injectable } from '@nestjs/common';
 import { GetItemCommand, PutItemCommand } from 'dynamodb-toolbox';
 import { uuidv7 } from 'uuidv7';
 
-import { Order, OrderEntity, OrderState } from '../dynamodb/order.table';
+import { type Order, OrderEntity, OrderState } from '../dynamodb/order.table';
 
 @Injectable()
 export class OrderEntityService implements IWorkflowEntity<Order, OrderState> {

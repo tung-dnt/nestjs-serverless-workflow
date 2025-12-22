@@ -23,7 +23,6 @@ import {
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService, ModuleRef } from '@nestjs/core';
 import { StateRouterHelperFactory } from './router.factory';
-import { SagaService } from './saga.service';
 
 /**
  * TODO:
@@ -52,7 +51,6 @@ export class OrchestratorService {
     private readonly discoveryService: DiscoveryService,
     private readonly routerHelperFactory: StateRouterHelperFactory,
     private readonly moduleRef: ModuleRef,
-    private readonly sagaService: SagaService,
   ) {}
 
   onModuleInit() {
@@ -115,7 +113,7 @@ export class OrchestratorService {
 
     const route = this.routes.get(event);
     if (!route) throw new BadRequestException(`No workflow found for event: ${event}`);
-    const { definition, instance, defaultHandler, brokerPublisher, entityService, historyService } = route;
+    const { definition, instance, defaultHandler, entityService } = route;
 
     if (!definition) {
       const className = instance.name;
@@ -130,12 +128,6 @@ export class OrchestratorService {
 
     // ========================= BEGIN routing logic =========================
     let entity = await routerHelper.loadAndValidateEntity(urn);
-
-    // Initialize SAGA context if enabled
-    let sagaContext: SagaContext<any> | undefined;
-    if (definition.saga?.enabled && historyService) {
-      sagaContext = await this.sagaService.initializeSaga(entity, definition, historyService);
-    }
 
     const entityStatus = entityService.status(entity);
     let transition = routerHelper.findValidTransition(entity, payload);
@@ -200,29 +192,11 @@ export class OrchestratorService {
         entity = await entityService.update(entity, transition.to);
         logger.log(`Element transitioned from ${currentEntityStatus} to ${transition.to} (${urn})`);
 
-        // Record SAGA step after successful transition
-        if (sagaContext && historyService) {
-          await this.sagaService.recordStep(
-            sagaContext,
-            currentEvent as string,
-            beforeState,
-            entity,
-            stepPayload,
-            historyService,
-          );
-        }
-
         const updatedStatus = entityService.status(entity);
 
         const definedFinalStates = definition.states.finals as Array<string | number>;
         if (definedFinalStates.includes(updatedStatus)) {
           logger.log(`Element ${urn} reached final state: ${updatedStatus}`);
-          // Mark SAGA as completed
-          if (sagaContext && historyService) {
-            sagaContext.status = SagaStatus.COMPLETED;
-            sagaContext.completedAt = new Date();
-            await historyService.saveSagaContext(sagaContext);
-          }
           break;
         }
 
@@ -239,20 +213,6 @@ export class OrchestratorService {
     } catch (e) {
       await entityService.update(entity, definition.states.failed);
       logger.error(`Transition failed. Setting status to failed (${(e as Error).message})`, urn);
-
-      // Execute SAGA compensations
-      if (sagaContext && historyService && definition.saga) {
-        await this.sagaService.markSagaFailed(sagaContext, e as Error, historyService);
-        await this.sagaService.executeCompensations(
-          sagaContext,
-          definition.saga,
-          compensationHandlers,
-          instance,
-          brokerPublisher,
-          historyService,
-        );
-      }
-
       throw e;
     }
   }

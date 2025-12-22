@@ -18,7 +18,7 @@ import { ORDER_WORKFLOW_BROKER, ORDER_WORKFLOW_ENTITY, OrderEvent } from './orde
       event: OrderEvent.CREATED,
       from: [OrderState.PENDING],
       to: OrderState.PROCESSING,
-      conditions: [(_entity: Order, payload: { approved: boolean }) => payload.approved], // idle for approval, only run workflow once matched conditions
+      conditions: [(_entity: Order, payload?: any) => (payload as { approved: boolean })?.approved === true], // idle for approval, only run workflow once matched conditions
     },
     {
       event: OrderEvent.PROCESSING,
@@ -43,7 +43,7 @@ export class OrderWorkflow {
     private readonly brokerPublisher: IBrokerPublisher,
   ) {}
 
-  @OnEvent<Order, OrderState>(OrderEvent.CREATED)
+  @OnEvent(OrderEvent.CREATED)
   async handleOrderCreated(@Entity() order: Order, @Payload() payload: any) {
     this.logger.log(`handleOrderCreated called for order ${order.id}, source=${JSON.stringify(payload)}`);
     // example action: charge payment, validate items, etc.
@@ -51,14 +51,14 @@ export class OrderWorkflow {
     return { processedAt: new Date().toISOString() };
   }
 
-  @OnEvent<Order, OrderState>(OrderEvent.PROCESSING)
+  @OnEvent(OrderEvent.PROCESSING)
   async handleOrderProcessing(@Entity() order: Order, @Payload() payload: any) {
     this.logger.log(`handleOrderProcessing called for order ${order.id} payload=${JSON.stringify(payload)}`);
     // example action: prepare shipment, notify warehouse, etc.
     return { processingAt: new Date().toISOString() };
   }
 
-  @OnEvent<Order, OrderState>(OrderEvent.SHIPPED)
+  @OnEvent(OrderEvent.SHIPPED)
   async handleOrderProcessed(@Entity() order: Order, @Payload() payload: any) {
     this.logger.log(`handleOrderProcessed called for order ${order.id} payload=${JSON.stringify(payload)}`);
     // perhaps notify customer, create shipment, etc.
@@ -72,7 +72,7 @@ export class OrderWorkflow {
     return { shippedAt: new Date().toISOString() };
   }
 
-  @OnEvent<Order, OrderState>(OrderEvent.CANCELLED)
+  @OnEvent(OrderEvent.CANCELLED)
   async handleOrderCancel(@Entity() order: Order) {
     this.logger.log(`handleOrderCancel called for order ${order.id}`);
     // release reserved inventory, refund, etc.
