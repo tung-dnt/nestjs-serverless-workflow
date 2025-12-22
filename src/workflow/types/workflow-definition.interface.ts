@@ -25,7 +25,7 @@ export interface IWorkflowDefinition<T, Event, State> {
     idles: State[];
     failed: State;
   };
-  transitions: ITransitionEvent<T, Event, State>[];
+  transitions: ITransitionEvent<T, Event, State, any>[];
   conditions?: (<P>(entity: T, payload?: P | T | object | string) => boolean)[];
 
   /**

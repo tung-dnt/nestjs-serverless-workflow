@@ -18,7 +18,7 @@ import { ORDER_WORKFLOW_BROKER, ORDER_WORKFLOW_ENTITY, OrderEvent } from './orde
       event: OrderEvent.CREATED,
       from: [OrderState.PENDING],
       to: OrderState.PROCESSING,
-      conditions: [(_entity: Order, payload?: any) => (payload as { approved: boolean })?.approved === true], // idle for approval, only run workflow once matched conditions
+      conditions: [(_entity: Order, payload?: { approved: boolean }) => payload?.approved === true], // idle for approval, only run workflow once matched conditions
     },
     {
       event: OrderEvent.PROCESSING,

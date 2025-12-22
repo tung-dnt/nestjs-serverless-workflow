@@ -30,7 +30,7 @@ export class RouterService<T, Event, State> {
     entity: T,
     payload: P,
     options?: { skipEventCheck?: boolean },
-  ): ITransitionEvent<T, Event, State> | null {
+  ): ITransitionEvent<T, Event, State, P> | null {
     const currentStatus = this.entityService.status(entity);
     const possibleNextTransitionSet = new Set<State>();
 
