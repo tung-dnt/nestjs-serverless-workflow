@@ -36,7 +36,12 @@
     // Path mapping
     "paths": {
       "*": ["./*"],
-      "@/*": ["./src/*"]
+      "@/*": ["../../packages/*"],
+      "nestjs-serverless-workflow/workflow": ["../../packages/workflow/index.ts"],
+      "nestjs-serverless-workflow/core": ["../../packages/workflow/index.ts"],
+      "nestjs-serverless-workflow/event-bus": ["../../packages/event-bus/index.ts"],
+      "nestjs-serverless-workflow/adapter": ["../../packages/adapter/index.ts"],
+      "nestjs-serverless-workflow/exception": ["../../packages/exception/index.ts"]
     }
   },
   "include": [

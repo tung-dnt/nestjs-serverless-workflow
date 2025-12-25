@@ -29,7 +29,7 @@ import { ORDER_WORKFLOW_BROKER, ORDER_WORKFLOW_ENTITY, OrderEvent } from './orde
       event: OrderEvent.CANCELLED,
       from: [OrderState.PENDING, OrderState.PROCESSING],
       to: OrderState.CANCELLED,
-      conditions: [(_entity) => false], // can't cancel if already shipped
+      conditions: [(_entity: Order) => false], // can't cancel if already shipped
     },
   ],
   entityService: ORDER_WORKFLOW_ENTITY,

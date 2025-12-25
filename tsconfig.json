@@ -34,5 +34,10 @@
       "*": ["./*"],
       "@/*": ["./packages/*"]
     }
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "examples"
+  ]
 }
