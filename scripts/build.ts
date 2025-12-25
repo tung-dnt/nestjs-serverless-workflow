@@ -6,7 +6,7 @@ await $`rm -rf dist`;
 console.log('📦 Building library with TypeScript compiler...');
 
 // Use TypeScript compiler for proper ESM output with declarations
-const tscResult = await $`bunx tsc -p tsconfig.build.json`.nothrow();
+const tscResult = await $`bun tsgo -p tsconfig.build.json`.nothrow();
 
 if (tscResult.exitCode !== 0) {
   console.error('❌ TypeScript compilation failed:');

@@ -1,7 +1,7 @@
-import { WorkflowModule } from '@/workflow';
 import { Module } from '@nestjs/common';
+import { WorkflowModule } from 'nestjs-serverless-workflow/workflow';
 
-import { MockBrokerPublisher } from './mock-broker.service';
+import { MockBrokerPublisher } from '../broker/mock-broker.service';
 import { OrderEntityService } from './order-entity.service';
 import { ORDER_WORKFLOW_BROKER, ORDER_WORKFLOW_ENTITY } from './order.constant';
 import { OrderController } from './order.controller';

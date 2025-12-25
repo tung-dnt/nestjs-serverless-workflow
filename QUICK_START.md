@@ -250,4 +250,3 @@ import { WorkflowModule } from 'serverless-workflow/workflow';
 ---
 
 **Ready to publish?** Follow the [Publishing Guide](./PUBLISHING.md) for a complete checklist.
-

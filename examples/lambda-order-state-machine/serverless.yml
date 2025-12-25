@@ -1,4 +1,4 @@
-service: nestjs-serverless-workflow
+service: lambda-order-state-machine
 
 frameworkVersion: '^4.4.0'
 

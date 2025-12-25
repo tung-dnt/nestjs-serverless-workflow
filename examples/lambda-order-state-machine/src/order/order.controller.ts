@@ -1,5 +1,5 @@
-import type { IWorkflowEntity } from '@/workflow';
-import { OrchestratorService } from '@/workflow';
+import type { IWorkflowEntity } from 'nestjs-serverless-workflow/workflow';
+import { OrchestratorService } from 'nestjs-serverless-workflow/workflow';
 import { Controller, Inject, Post } from '@nestjs/common';
 
 import { ORDER_WORKFLOW_ENTITY, OrderEvent } from './order.constant';

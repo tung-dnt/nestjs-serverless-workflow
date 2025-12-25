@@ -12,7 +12,7 @@ A flexible workflow engine built on top of NestJS framework, enabling developers
 
 Explore fully functional examples with **interactive visual demos** in our dedicated examples repository:
 
-### 👉 **[View Examples Repository](https://github.com/@nestjs-serverless-workflow-examples)**
+### 👉 **[View Examples](https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples)**
 
 The repository includes three comprehensive real-world examples:
 
@@ -27,7 +27,7 @@ Each example features:
 - 🤖 **Automated Scenarios** - Pre-built test cases demonstrating various workflow paths
 - 📝 **Full Source Code** - Production-ready implementations you can adapt
 
-**[➡️ Get Started with Examples](https://github.com/@nestjs-serverless-workflow-examples#-quick-start)**
+**[➡️ Get Started with Examples](https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples#-quick-start)**
 
 ## Table of Contents
 
@@ -141,9 +141,9 @@ Before diving into code, experience workflows visually with our interactive demo
 
 ```bash
 # Quick demo setup
-git clone https://github.com/@nestjs-serverless-workflow-examples.git
+git clone https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples.git
 cd nestjs-workflow-examples/01-user-onboarding
-npm install && npm run demo
+bun install && bun local
 ```
 
 You'll see an interactive workflow visualization like this:
@@ -162,7 +162,7 @@ You'll see an interactive workflow visualization like this:
                                              ╚══════════╝
 ```
 
-**[🚀 Explore All Examples](https://github.com/@nestjs-serverless-workflow-examples)**
+**[🚀 Explore All Examples](https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples)**
 
 ### How It Works
 
@@ -297,100 +297,4 @@ Using a dedicated EntityService provides several advantages:
 4. **Testability**: Easier to mock and test your entity operations
 5. **Database Integration**: Cleanly integrate with your database through repositories
 
-This approach is particularly useful for complex applications where entities are stored in databases and require sophisticated loading and persistence logic.
-
-## 📚 Examples & Learning Resources
-
-### Interactive Examples Repository
-The best way to learn is by exploring our **[comprehensive examples repository](https://github.com/@nestjs-serverless-workflow-examples)** which includes:
-
-#### 1. User Onboarding Workflow Example
-Demonstrates a real-world user registration and verification system:
-- Progressive profile completion with automatic transitions
-- Multi-factor authentication flows
-- Risk assessment integration
-- Compliance checks (KYC/AML)
-- States: `REGISTERED` → `EMAIL_VERIFIED` → `PROFILE_COMPLETE` → `IDENTITY_VERIFIED` → `ACTIVE`
-
-#### 2. E-Commerce Order Processing Example
-Complete order lifecycle management system:
-- Payment processing with retry logic
-- Inventory reservation and management
-- Multi-state shipping workflows
-- Refund and return handling
-- States: `CREATED` → `PAYMENT_PENDING` → `PAID` → `PROCESSING` → `SHIPPED` → `DELIVERED`
-
-#### 3. Message-Driven Inventory Management
-Event-driven inventory system with Message Brokers integration:
-- Real-time stock level updates via Message Broker events
-- Automatic reorder triggering
-- Quality control and quarantine workflows
-- Multi-warehouse support
-- Special states for `QUARANTINE`, `AUDITING`, `DAMAGED`, `EXPIRED`
-
-### Running the Examples
-
-```bash
-# Clone the examples repository
-git clone https://github.com/@nestjs-serverless-workflow-examples.git
-cd nestjs-workflow-examples
-
-# Install all examples
-npm run install:all
-
-# Run interactive demos with visual workflow diagrams
-npm run demo:user-onboarding    # User onboarding demo
-npm run demo:order-processing   # Order processing demo
-npm run demo:kafka-inventory    # Kafka inventory demo
-```
-
-The interactive demos feature:
-- **ASCII-art workflow visualization** showing current state and possible transitions
-- **Real-time state updates** as you interact with the workflow
-- **Menu-driven interface** to trigger events and explore different paths
-- **Automated scenarios** to demonstrate various workflow patterns
-
-## Advanced Usage
-For more advanced usage, including custom actions, conditions, and event handling, please check the documentation and explore the examples repository.
-```
-
-State Machine flow chart
-```mermaid
-flowchart TD
-  Start["emit(event, urn, payload)"]
-  LoadEntity["loadEntity(urn)"]
-  Found{"entity found?"}
-  GetStatus["getEntityStatus(entity)"]
-  FindTransition["find matching TransitionEvent (event + state)"]
-  NoTransition{"transitionEvent found?"}
-  Fallback["call definition.fallback(...) if configured and return"]
-  ReturnEntity["return entity"]
-  DetermineNext["select concrete transition by evaluating conditions"]
-  EventActions["run actionsOnEvent(event) sequentially"]
-  InlineActions["run transition.actions (inline) sequentially"]
-  FailedCheck{"failed during actions?"}
-  UpdateStatus["updateEntityStatus(entity, nextStatus)"]
-  StatusActions["run actionsOnStatusChanged(from-to)"]
-  PostFailed{"failed after status-change actions?"}
-  IdleCheck{"isInIdleStatus(nextStatus)?"}
-  FinalCheck{"isInFailedStatus or final?"}
-  NextEvent["nextEvent(entity) -> event | null"]
-  LoopBack["repeat loop with new currentEvent/currentState"]
-  End["return updated entity"]
-
-  Start --> LoadEntity --> Found
-  Found -- no --> ReturnEntity
-  Found -- yes --> GetStatus --> FindTransition --> NoTransition
-  NoTransition -- no & fallback --> Fallback --> ReturnEntity
-  NoTransition -- no & no fallback --> ReturnEntity
-  NoTransition -- yes --> DetermineNext --> EventActions --> InlineActions --> FailedCheck
-  FailedCheck -- true --> UpdateStatus --> End
-  FailedCheck -- false --> UpdateStatus --> StatusActions --> PostFailed
-  PostFailed -- true --> UpdateStatus --> End
-  PostFailed -- false --> IdleCheck
-  IdleCheck -- true --> End
-  IdleCheck -- false --> FinalCheck
-  FinalCheck -- true --> End
-  FinalCheck -- false --> NextEvent --> LoopBack
-```
-````
+This approach is particularly useful for complex applications where entities are stored in databases and require sophisticated loading and persistence logic.`

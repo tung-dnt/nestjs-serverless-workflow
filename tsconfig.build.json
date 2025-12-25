@@ -24,11 +24,11 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./packages/*"]
     }
   },
   "include": [
-    "src/**/*"
+    "packages/**/*"
   ],
   "exclude": [
     "node_modules",
