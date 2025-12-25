@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { type INestApplicationContext } from '@nestjs/common';
-import { LambdaEventHandler } from '../../src/adapter/lambda.adapater';
+import { LambdaEventHandler } from '../../packages/adapter/lambda.adapater';
 import type { SQSEvent, Context } from 'aws-lambda';
 
 describe('LambdaEventHandler', () => {
@@ -57,8 +57,10 @@ describe('LambdaEventHandler', () => {
     const result = await handler(mockEvent, mockContext, () => {});
     
     expect(result).toBeDefined();
-    expect(result.batchItemFailures).toBeDefined();
-    expect(Array.isArray(result.batchItemFailures)).toBe(true);
+    if (result) {
+      expect(result.batchItemFailures).toBeDefined();
+      expect(Array.isArray(result.batchItemFailures)).toBe(true);
+    }
   });
 });
 

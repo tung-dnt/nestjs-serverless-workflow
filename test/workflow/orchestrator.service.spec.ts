@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { OrchestratorService } from '../../src/workflow/providers/ochestrator.service';
+import { OrchestratorService } from '../../packages/workflow/providers/ochestrator.service';
 
 describe('OrchestratorService', () => {
   let service: OrchestratorService;

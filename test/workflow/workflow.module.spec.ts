@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkflowModule } from '../../src/workflow/workflow.module';
+import { WorkflowModule } from '../../packages/workflow/workflow.module';
 
 describe('WorkflowModule', () => {
   let module: TestingModule;

@@ -1,4 +1,4 @@
-import { UnretriableException } from '../../src/exception/unretriable.exception';
+import { UnretriableException } from '../../packages/exception/unretriable.exception';
 
 describe('UnretriableException', () => {
   it('should create an exception with message', () => {

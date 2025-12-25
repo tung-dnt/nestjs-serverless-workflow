@@ -1,5 +1,5 @@
-import { SqsEmitter } from '../../src/event-bus/sqs/sqs.emitter';
-import type { IWorkflowEvent } from '../../src/event-bus/types';
+import { SqsEmitter } from '../../packages/event-bus/sqs/sqs.emitter';
+import type { IWorkflowEvent } from '../../packages/event-bus/types';
 
 describe('SqsEmitter', () => {
   let emitter: SqsEmitter;

@@ -1,6 +1,6 @@
 import { Inject, Logger } from '@nestjs/common';
 import type { IBrokerPublisher } from 'nestjs-serverless-workflow/event-bus';
-import { Entity, OnDefault, OnEvent, Payload, Workflow } from 'nestjs-serverless-workflow/workflow';
+import { Entity, OnDefault, OnEvent, Payload, Workflow } from 'nestjs-serverless-workflow/core';
 
 import type { Order } from '../dynamodb/order.table';
 import { OrderState } from '../dynamodb/order.table';

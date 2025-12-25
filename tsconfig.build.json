@@ -22,22 +22,11 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./packages/*"]
-    }
+      "*": ["./*"],
+      "@/*": ["./packages/*"],
+    },
   },
-  "include": [
-    "packages/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "tests",
-    "test",
-    "examples",
-    "**/*spec.ts",
-    "**/*.spec.ts",
-    "scripts"
-  ]
+  "include": ["packages/**/*"],
+  "exclude": ["node_modules", "dist", "test", "test", "examples", "**/*spec.ts", "**/*.spec.ts", "scripts"],
 }

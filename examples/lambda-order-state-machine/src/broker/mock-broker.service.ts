@@ -1,5 +1,5 @@
-import type { IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
 import { Injectable, Logger } from '@nestjs/common';
+import type { IBrokerPublisher, IWorkflowEvent } from 'nestjs-serverless-workflow/event-bus';
 
 /**
  * Minimal mock broker publisher that logs emitted workflow events.

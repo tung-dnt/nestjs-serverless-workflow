@@ -6,36 +6,36 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "outDir": "./dist",
-    
+
     // Enable compilation
     "noEmit": false,
     "declaration": false,
     "sourceMap": true,
-    
+
     // NestJS decorators
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    
+
     // Module system
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    
+
     // Type checking
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
-    
+
     // Disabled for flexibility
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
-    
+
     // Path mapping
-    "baseUrl": ".",
     "paths": {
+      "*": ["./*"],
       "@/*": ["./src/*"]
     }
   },
