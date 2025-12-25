@@ -1,212 +1,39 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://joseescrich.com/logos/nestjs-workflow.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://joseescrich.com/logos/nestjs-workflow-light.png">
-  <img src="https://joseescrich.com/logos/nestjs-workflow.png" alt="NestJS Workflow Logo" width="200" style="margin-bottom:20px">
-</picture>
+# NestJS Serverless Workflow
 
-# NestJS Workflow & State Machine
+[![npm version](https://img.shields.io/npm/v/nestjs-serverless-workflow.svg)](https://www.npmjs.com/package/nestjs-serverless-workflow)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A flexible workflow engine built on top of NestJS framework, enabling developers to create, manage, and execute complex workflows in their Node.js applications.
-
-## 🎯 Live Examples & Demos
-
-Explore fully functional examples with **interactive visual demos** in our dedicated examples repository:
-
-### 👉 **[View Examples](https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples)**
-
-The repository includes three comprehensive real-world examples:
-
-1. **🚀 User Onboarding Workflow** - Multi-step verification, KYC/AML compliance, risk assessment
-2. **📦 Order Processing System** - Complete e-commerce lifecycle with payment retry logic
-3. **📊 Kafka-Driven Inventory** - Real-time event-driven inventory management with Kafka integration
-
-Each example features:
-
-- ✨ **Interactive Visual Mode** - See workflows in action with real-time state visualization
-- 🎮 **Interactive Controls** - Manually trigger transitions and explore different paths
-- 🤖 **Automated Scenarios** - Pre-built test cases demonstrating various workflow paths
-- 📝 **Full Source Code** - Production-ready implementations you can adapt
-
-**[➡️ Get Started with Examples](https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples#-quick-start)**
-
-## Table of Contents
-
-- [Features](#features)
-- [Stateless Architecture](#stateless-architecture)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Module Registration](#module-registration)
-- [Define a Workflow](#define-a-workflow)
-- [Message Format](#message-format)
-- [Configuring Actions and Conditions](#configuring-actions-and-conditions)
-- [Complete Example with Kafka Integration](#complete-example-with-kafka-integration)
+A powerful, tree-shakable workflow and state machine library for NestJS applications, optimized for serverless environments like AWS Lambda.
 
 ## Features
 
-- **🌲 Tree-Shakable**: Modular architecture with subpath exports ensures minimal bundle size
-- **Workflow Definitions**: Define workflows using a simple, declarative syntax
-- **State Management**: Track and persist workflow states
-- **Event-Driven Architecture**: Built on NestJS's event system for flexible workflow triggers
-- **Transition Rules**: Configure complex transition conditions between workflow states
-- **Extensible**: Easily extend with custom actions, conditions, and triggers
-- **TypeScript Support**: Full TypeScript support with strong typing
-- **Integration Friendly**: Seamlessly integrates with existing NestJS applications
-- **Message Broker Integration**: Easily integrate with SQS, Kafka, RabbitMQ, and more
-- **Stateless Design**: Lightweight implementation with no additional storage requirements
-- **Serverless Ready**: Optimized for AWS Lambda with automatic timeout handling
-
-## 📚 Documentation
-
-Comprehensive documentation is available:
-- **[Getting Started](./docs/getting-started.md)** - Installation and basic usage
-- **[Workflow Module](./docs/workflow.md)** - State machines and transitions
-- **[Event Bus](./docs/event-bus.md)** - Message broker integration
-- **[Adapters](./docs/adapters.md)** - Runtime environment adapters
-- **[API Documentation](./docs/)** - Full API reference
-
-Online documentation: https://@nestjs-serverless-workflow.github.io/libraries/docs/workflow/intro
-
-# Stateless Architecture
-
-## NestJS Workflow is designed with a stateless architecture, which offers several key benefits
-
-Benefits of Stateless Design
-
-- Simplicity: No additional database or storage configuration required
-- Domain-Driven: State is maintained within your domain entities where it belongs
-- Lightweight: Minimal overhead and dependencies
-- Scalability: Easily scales horizontally with your application
-- Flexibility: Works with any persistence layer or storage mechanism
-- Integration: Seamlessly integrates with your existing data model and repositories
-- The workflow engine doesn't maintain any state itself - instead, it operates on your domain entities, reading their current state and applying transitions according to your defined rules. This approach aligns with domain-driven design principles by keeping the state with the entity it belongs to.
-
-This stateless design means you can:
-
-Use your existing repositories and data access patterns
-Persist workflow state alongside your entity data
-Avoid complex synchronization between separate state stores
-Maintain transactional integrity with your domain operations
-
-```
-// Example of how state is part of your domain entity
-export class Order {
-  id: string;
-  items: OrderItem[];
-  totalAmount: number;
-  status: OrderStatus; // The workflow state is a property of your entity
-
-  // Your domain logic here
-}
-```
-
-The workflow engine simply reads and updates this state property according to your defined transitions, without needing to maintain any separate state storage.
+- 🎯 **State Machine Engine**: Define workflows with states, transitions, and events
+- 🔄 **Event-Driven Architecture**: Integrate with message brokers (SQS, Kafka, RabbitMQ, etc.)
+- ⚡ **Serverless Optimized**: Built for AWS Lambda with automatic timeout handling
+- 📦 **Tree-Shakable**: Subpath exports ensure minimal bundle sizes
+- 🛡️ **Type-Safe**: Full TypeScript support with comprehensive type definitions
+- 🔁 **Retry Logic**: Built-in retry mechanisms with exponential backoff
+- 🎨 **Decorator-Based API**: Clean, declarative workflow definitions
+- 📊 **Saga Pattern Support**: Distributed transaction management
 
 ## Installation
 
 ```bash
-npm install nestjs-serverless-workflow
+# Using npm
+npm install nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
+
+# Using bun
+bun add nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
+
+# Using yarn
+yarn add nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
 ```
-
-Or using bun:
-
-```bash
-bun add nestjs-serverless-workflow
-```
-
-Or using yarn:
-
-```bash
-yarn add nestjs-serverless-workflow
-```
-
-### Peer Dependencies
-
-This library requires the following peer dependencies:
-
-```bash
-npm install @nestjs/common @nestjs/core reflect-metadata rxjs
-```
-
-**Optional Dependencies** (only if you need specific features):
-
-- For AWS Lambda adapter: `@types/aws-lambda`
-- For SQS integration: `@aws-sdk/client-sqs`
-- For DynamoDB: `@aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb`
 
 ## Quick Start
 
-### 🎮 Try the Interactive Demos First
-
-Before diving into code, experience workflows visually with our interactive demos:
-
-```bash
-# Quick demo setup
-git clone https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples.git
-cd nestjs-workflow-examples/01-user-onboarding
-bun install && bun local
-```
-
-You'll see an interactive workflow visualization like this:
-
-```
-╔══════════════╗     ┌──────────────┐     ┌────────────────┐
-║  REGISTERED  ║ --> │EMAIL_VERIFIED│ --> │PROFILE_COMPLETE│
-╚══════════════╝     └──────────────┘     └────────────────┘
-   (current)                ↓                      ↓
-                    ┌──────────────┐      ┌─────────────────┐
-                    │   SUSPENDED  │      │IDENTITY_VERIFIED│
-                    └──────────────┘      └─────────────────┘
-                                                   ↓
-                                             ╔══════════╗
-                                             ║  ACTIVE  ║
-                                             ╚══════════╝
-```
-
-**[🚀 Explore All Examples](https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples)**
-
-### How It Works
-
-When you configure SQS integration:
-
-1. The workflow engine will connect to the specified SQS queue
-2. It will subscribe to the topics you've defined in the `events` array
-3. When a message arrives on a subscribed topic, the workflow engine will:
-   - Map the topic to the corresponding workflow event
-   - Extract the entity URN from the message
-   - Load the entity using your defined `entity.load` function
-   - Emit the mapped workflow event with the Kafka message as payload
-
-### Complete Example with SQS Integration
-
-## Using Subpath Exports
-
-The package uses modern subpath exports for better tree-shaking. Import only what you need:
+### 1. Define Your Entity
 
 ```typescript
-import { WorkflowModule } from 'nestjs-serverless-workflow/workflow';
-import { IBrokerPublisher } from 'nestjs-serverless-workflow/event-bus';
-import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
-import { UnretriableException } from 'nestjs-serverless-workflow/exception';
-```
-
-This ensures that your bundle only includes the parts of the library you actually use, resulting in smaller bundle sizes.
-
-## Quick Start
-
-````typescript
-import { Module } from '@nestjs/common';
-import { WorkflowModule, Workflow, OnEvent, Payload, Entity } from 'nestjs-serverless-workflow/workflow';
-import { OrderEntityService } from './order-entity.service';
-
-
-// Define your entity and state/event enums
-export enum OrderEvent {
-  Create = 'order.create',
-  Submit = 'order.submit',
-  Complete = 'order.complete',
-  Fail = 'order.fail',
-}
-
 export enum OrderStatus {
   Pending = 'pending',
   Processing = 'processing',
@@ -216,85 +43,242 @@ export enum OrderStatus {
 
 export class Order {
   id: string;
-  name: string;
-  price: number;
-  items: string[];
   status: OrderStatus;
+  // ... other properties
 }
+```
+
+### 2. Create a Workflow
+
+```typescript
+import { Workflow, OnEvent, Entity, Payload } from 'nestjs-serverless-workflow/core';
+
 @Workflow({
-    states: {
-      finals: [OrderStatus.Completed, OrderStatus.Failed],
-      idles: [OrderStatus.Pending, OrderStatus.Processing, OrderStatus.Completed, OrderStatus.Failed],
-      failed: OrderStatus.Failed,
+  name: 'OrderWorkflow',
+  states: {
+    finals: [OrderStatus.Completed, OrderStatus.Failed],
+    idles: [OrderStatus.Pending],
+    failed: OrderStatus.Failed,
+  },
+  transitions: [
+    {
+      from: [OrderStatus.Pending],
+      to: OrderStatus.Processing,
+      event: 'order.submit',
     },
-    transitions: [
-      // Your transitions here
-      {
-        from: OrderStatus.Pending,
-        to: OrderStatus.Processing,
-        event: OrderEvent.Submit,
-        conditions: [(entity: Order, payload: any) => entity.price > 10],
-      },
-      {
-        from: OrderStatus.Processing,
-        to: OrderStatus.Completed,
-        event: OrderEvent.Complete,
-      },
-      {
-        from: OrderStatus.Processing,
-        to: OrderStatus.Failed,
-        event: OrderEvent.Fail,
-      }
-    ],
-  };
+    {
+      from: [OrderStatus.Processing],
+      to: OrderStatus.Completed,
+      event: 'order.complete',
+    },
+  ],
+  entityService: 'entity.order',
+  brokerPublisher: 'broker.order',
 })
-class OrderWorkflowDefinition {
-  @OnEvent(OrderEvent.Submit)
-  async onSubmit(@Entity entity: Order, @Payload(YourClassValidatorDto) submitData): Promise<Order> {
-    // Custom logic on submit event
+export class OrderWorkflow {
+  @OnEvent('order.submit')
+  async onSubmit(@Entity() entity: Order, @Payload() data: any) {
+    console.log('Order submitted:', entity.id);
+    return entity;
+  }
+
+  @OnEvent('order.complete')
+  async onComplete(@Entity() entity: Order) {
+    console.log('Order completed:', entity.id);
+    return entity;
   }
 }
+```
+
+### 3. Implement Entity Service
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { IWorkflowEntity } from 'nestjs-serverless-workflow/core';
+
+@Injectable()
+export class OrderEntityService implements IWorkflowEntity<Order, OrderStatus> {
+  async create(): Promise<Order> {
+    // Create new order
+  }
+
+  async load(urn: string): Promise<Order | null> {
+    // Load order from database
+  }
+
+  async update(entity: Order, status: OrderStatus): Promise<Order> {
+    // Update order status
+  }
+
+  status(entity: Order): OrderStatus {
+    return entity.status;
+  }
+
+  urn(entity: Order): string {
+    return entity.id;
+  }
+}
+```
+
+### 4. Register the Module
+
+```typescript
+import { Module } from '@nestjs/common';
+import { WorkflowModule } from 'nestjs-serverless-workflow/core';
+import { OrderWorkflow } from './order.workflow';
+import { OrderEntityService } from './order-entity.service';
 
 @Module({
   imports: [
     WorkflowModule.register({
-      providers: [
-        {
-          provide: OrderWorkflowDefinition,
-          useFactory: (orderEntityService: OrderEntityService, eventEmitter: EventEmitter2) => {
-            return new OrderWorkflowDefinition(orderEntityService, eventEmitter);
-          },
-          inject: [OrderEntityService, EventEmitter2]
-        }
-      ]
+      entities: [
+        { provide: 'entity.order', useClass: OrderEntityService },
+      ],
+      workflows: [OrderWorkflow],
+      brokers: [
+        { provide: 'broker.order', useClass: MySqsEmitter },
+      ],
     }),
   ],
 })
-export class AppModule {}
+export class OrderModule {}
 ```
 
-### Message Format
+## Documentation
 
-The Kafka messages should include the entity URN so that the workflow engine can load the correct entity. For example:
+📚 **[Full Documentation](https://tung-dnt.github.io/nestjs-serverless-workflow/)**
 
-```json
+- [Getting Started](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/getting-started)
+- [Workflow Module](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/workflow)
+- [Event Bus](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/event-bus)
+- [Lambda Adapter](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/adapters)
+- [API Reference](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/api-reference/workflow-module)
+- [Examples](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/examples/lambda-order-state-machine)
+
+## Package Structure
+
+The library is organized into tree-shakable subpath exports:
+
+```
+nestjs-serverless-workflow/
+├── core          # Core workflow engine (decorators, services, types)
+├── event-bus     # Event publishing and broker integration
+├── adapter       # Runtime adapters (Lambda, HTTP)
+└── exception     # Custom exception types
+```
+
+### Import Only What You Need
+
+```typescript
+// Only imports workflow module
+import { WorkflowModule } from 'nestjs-serverless-workflow/core';
+
+// Only imports event bus
+import { IBrokerPublisher } from 'nestjs-serverless-workflow/event-bus';
+
+// Only imports Lambda adapter
+import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+
+// Only imports exceptions
+import { UnretriableException } from 'nestjs-serverless-workflow/exception';
+```
+
+This ensures minimal bundle sizes and faster cold starts in serverless environments.
+
+## Examples
+
+Check out the [examples directory](./examples/) for complete working examples:
+
+- **[Lambda Order State Machine](./examples/lambda-order-state-machine/)**: Complete AWS Lambda example with SQS and DynamoDB
+
+## Key Concepts
+
+### States
+
+States represent the different stages your entity can be in:
+
+- **Finals**: Terminal states where the workflow ends
+- **Idles**: States where the workflow waits for external events
+- **Failed**: The failure state to transition to on errors
+
+### Transitions
+
+Transitions define how entities move from one state to another, triggered by events:
+
+```typescript
 {
-  "urn": "order-123",
-  "price": 150,
-  "items": ["Item 1", "Item 2"]
+  from: [OrderStatus.Pending],
+  to: OrderStatus.Processing,
+  event: 'order.submit',
+  conditions: [
+    (entity: Order, payload: any) => entity.items.length > 0,
+  ],
 }
 ```
 
-With this setup, your workflow will automatically react to Kafka messages and trigger the appropriate state transitions based on your workflow definition.
+### Events
 
-### Benefits of Using EntityService
+Events trigger state transitions. Define event handlers using the `@OnEvent` decorator:
 
-Using a dedicated EntityService provides several advantages:
+```typescript
+@OnEvent('order.submit')
+async onSubmit(@Entity() entity: Order, @Payload() data: any) {
+  // Handle the event
+}
+```
 
-1. **Separation of Concerns**: Keep entity management logic separate from workflow definitions
-2. **Dependency Injection**: Leverage NestJS dependency injection for your entity operations
-3. **Reusability**: Use the same EntityService across multiple workflows
-4. **Testability**: Easier to mock and test your entity operations
-5. **Database Integration**: Cleanly integrate with your database through repositories
+## AWS Lambda Integration
 
-This approach is particularly useful for complex applications where entities are stored in databases and require sophisticated loading and persistence logic.`
+The library includes a Lambda adapter that handles:
+
+- Automatic timeout management
+- Batch item failures
+- Graceful shutdown before timeout
+- SQS event source integration
+
+```typescript
+import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+import { type SQSHandler } from 'aws-lambda';
+
+const app = await NestFactory.createApplicationContext(AppModule);
+export const handler: SQSHandler = LambdaEventHandler(app);
+```
+
+## Requirements
+
+- Node.js >= 20.0.0 or Bun >= 1.3.4
+- NestJS >= 11.0.0
+- TypeScript >= 5.0.0
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](./CONTRIBUTING.md) for details on:
+
+- Code style and conventions
+- Development setup
+- Testing guidelines
+- Pull request process
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
+## Author
+
+**Thomas Do (tung-dnt)**
+
+- GitHub: [@tung-dnt](https://github.com/tung-dnt)
+- Repository: [nestjs-serverless-workflow](https://github.com/tung-dnt/nestjs-serverless-workflow)
+
+## Support
+
+- 📖 [Documentation](https://tung-dnt.github.io/nestjs-serverless-workflow/)
+- 🐛 [Issue Tracker](https://github.com/tung-dnt/nestjs-serverless-workflow/issues)
+- 💬 [Discussions](https://github.com/tung-dnt/nestjs-serverless-workflow/discussions)
+
+## Related Projects
+
+- [NestJS](https://nestjs.com/) - A progressive Node.js framework
+- [AWS Lambda](https://aws.amazon.com/lambda/) - Serverless compute service
+- [AWS SQS](https://aws.amazon.com/sqs/) - Message queuing service
+

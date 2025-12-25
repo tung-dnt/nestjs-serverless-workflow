@@ -1,0 +1,13 @@
+{
+  // This file is not used when compilation is delegated to TypeScript / Babel.
+  // The referenced `tsconfig.json` is automatically applied.
+  // "extends": "@docusaurus/tsconfig",
+  "extends": "@docusaurus/module-type-aliases",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@site/*": ["./src/*"]
+    }
+  }
+}
+

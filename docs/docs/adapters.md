@@ -5,7 +5,7 @@ Adapters help integrate the workflow engine with different runtime environments.
 ## Installation
 
 ```typescript
-import { LambdaEventHandler } from 'serverless-workflow/adapter';
+import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
 ```
 
 ## Lambda Adapter
@@ -24,7 +24,7 @@ npm install -D @types/aws-lambda
 
 ```typescript
 import { NestFactory } from '@nestjs/core';
-import { LambdaEventHandler } from 'serverless-workflow/adapter';
+import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
 import { type SQSHandler } from 'aws-lambda';
 import { AppModule } from './app.module';
 
@@ -102,9 +102,9 @@ The adapter will stop processing 5 seconds before this timeout to ensure gracefu
 
 ```typescript
 import { NestFactory } from '@nestjs/core';
-import { LambdaEventHandler } from 'serverless-workflow/adapter';
+import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
 import { type SQSHandler } from 'aws-lambda';
-import { WorkflowModule } from 'serverless-workflow/workflow';
+import { WorkflowModule } from 'nestjs-serverless-workflow/core';
 import { OrderWorkflow } from './order.workflow';
 import { OrderEntityService } from './order-entity.service';
 import { MySqsEmitter } from './sqs.emitter';
@@ -112,71 +112,19 @@ import { MySqsEmitter } from './sqs.emitter';
 // Create NestJS application context
 const app = await NestFactory.createApplicationContext(
   WorkflowModule.register({
-    entities: [OrderEntityService],
+    entities: [
+      { provide: 'entity.order', useClass: OrderEntityService },
+    ],
     workflows: [OrderWorkflow],
-    brokers: [MySqsEmitter],
+    brokers: [
+      { provide: 'broker.order', useClass: MySqsEmitter },
+    ],
   })
 );
 await app.init();
 
 // Export handler
 export const handler: SQSHandler = LambdaEventHandler(app);
-```
-
-### Advanced Usage
-
-#### Custom Error Handling
-
-```typescript
-import { LambdaEventHandler } from 'serverless-workflow/adapter';
-import { UnretriableException } from 'serverless-workflow/exception';
-
-const app = await NestFactory.createApplicationContext(AppModule);
-
-// Add custom error handling
-app.useGlobalFilters({
-  catch(exception: Error) {
-    if (exception instanceof UnretriableException) {
-      console.error('Unretriable error:', exception.message);
-      // Don't retry this message
-      return;
-    }
-    throw exception;
-  },
-});
-
-export const handler = LambdaEventHandler(app);
-```
-
-#### Multiple Handlers
-
-Create separate handlers for different workflows:
-
-```typescript
-// orderHandler.ts
-const orderApp = await NestFactory.createApplicationContext(OrderModule);
-export const handler = LambdaEventHandler(orderApp);
-
-// userHandler.ts
-const userApp = await NestFactory.createApplicationContext(UserModule);
-export const handler = LambdaEventHandler(userApp);
-```
-
-Configure in `serverless.yml`:
-
-```yaml
-functions:
-  orderWorkflow:
-    handler: dist/orderHandler.handler
-    events:
-      - sqs:
-          arn: !GetAtt OrderQueue.Arn
-
-  userWorkflow:
-    handler: dist/userHandler.handler
-    events:
-      - sqs:
-          arn: !GetAtt UserQueue.Arn
 ```
 
 ## Creating Custom Adapters
@@ -187,8 +135,8 @@ You can create adapters for other runtimes:
 
 ```typescript
 import { Controller, Post, Body } from '@nestjs/common';
-import { OrchestratorService } from 'serverless-workflow/workflow';
-import { IWorkflowEvent } from 'serverless-workflow/event-bus';
+import { OrchestratorService } from 'nestjs-serverless-workflow/core';
+import { IWorkflowEvent } from 'nestjs-serverless-workflow/event-bus';
 
 @Controller('workflow')
 export class WorkflowController {
@@ -206,92 +154,21 @@ export class WorkflowController {
 
 ```typescript
 import { EventBridgeHandler } from 'aws-lambda';
-import { OrchestratorService } from 'serverless-workflow/workflow';
+import { OrchestratorService } from 'nestjs-serverless-workflow/core';
 
 export const handler: EventBridgeHandler<string, any, void> = async (event) => {
   const app = await getApp();
   const orchestrator = app.get(OrchestratorService);
 
   const workflowEvent = {
+    topic: event['detail-type'],
     urn: event.detail.entityId,
-    event: event['detail-type'],
     payload: event.detail,
+    attempt: 0,
   };
 
   await orchestrator.transit(workflowEvent);
 };
-```
-
-## Deployment
-
-### Using Serverless Framework
-
-```yaml
-service: workflow-service
-
-provider:
-  name: aws
-  runtime: nodejs20.x
-  region: us-east-1
-
-functions:
-  workflowHandler:
-    handler: dist/lambda.handler
-    events:
-      - sqs:
-          arn: !GetAtt WorkflowQueue.Arn
-          batchSize: 10
-          functionResponseType: ReportBatchItemFailures
-    timeout: 300
-    environment:
-      NODE_ENV: production
-
-resources:
-  Resources:
-    WorkflowQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        VisibilityTimeout: 360
-        MessageRetentionPeriod: 1209600
-        RedrivePolicy:
-          deadLetterTargetArn: !GetAtt WorkflowDLQ.Arn
-          maxReceiveCount: 3
-
-    WorkflowDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        MessageRetentionPeriod: 1209600
-```
-
-### Using AWS CDK
-
-```typescript
-import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
-import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
-
-const queue = new sqs.Queue(this, 'WorkflowQueue', {
-  visibilityTimeout: cdk.Duration.minutes(6),
-  deadLetterQueue: {
-    queue: dlq,
-    maxReceiveCount: 3,
-  },
-});
-
-const workflowFn = new lambda.Function(this, 'WorkflowHandler', {
-  runtime: lambda.Runtime.NODEJS_20_X,
-  handler: 'dist/lambda.handler',
-  code: lambda.Code.fromAsset('dist'),
-  timeout: cdk.Duration.minutes(5),
-});
-
-workflowFn.addEventSource(
-  new lambdaEventSources.SqsEventSource(queue, {
-    batchSize: 10,
-    reportBatchItemFailures: true,
-  })
-);
 ```
 
 ## Performance Optimization
@@ -304,10 +181,10 @@ workflowFn.addEventSource(
 
 ```typescript
 // Good: Only imports what's needed
-import { LambdaEventHandler } from 'serverless-workflow/adapter';
+import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
 
 // Bad: Imports everything
-import * as Workflow from 'serverless-workflow';
+import * as Workflow from 'nestjs-serverless-workflow';
 ```
 
 ### Memory Configuration
@@ -342,27 +219,6 @@ Monitor these metrics:
 - SQS Messages Deleted
 - DLQ Message Count
 
-### Custom Metrics
-
-Add custom metrics for workflow events:
-
-```typescript
-import { CloudWatch } from '@aws-sdk/client-cloudwatch';
-
-const cloudwatch = new CloudWatch({});
-
-await cloudwatch.putMetricData({
-  Namespace: 'Workflow',
-  MetricData: [
-    {
-      MetricName: 'TransitionsProcessed',
-      Value: 1,
-      Unit: 'Count',
-    },
-  ],
-});
-```
-
 ## Best Practices
 
 1. **Set appropriate timeouts**: Match Lambda timeout to workflow complexity
@@ -372,13 +228,8 @@ await cloudwatch.putMetricData({
 5. **Monitor metrics**: Track processing times and error rates
 6. **Use structured logging**: Include correlation IDs for tracing
 
-## Examples
-
-- [Lambda Handler](../examples/usage/lambda.ts)
-- [Order Processing Example](../examples/order/)
-
 ## Related Documentation
 
-- [Event Bus](./event-bus.md) - Configure message brokers
-- [Workflow Module](./workflow.md) - Define workflows
+- [Event Bus](./event-bus) - Configure message brokers
+- [Workflow Module](./workflow) - Define workflows
 
