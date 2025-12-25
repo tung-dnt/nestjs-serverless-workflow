@@ -1,5 +1,6 @@
+import { WorkflowModule } from '@/workflow/workflow.module';
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkflowModule } from '../../packages/workflow/workflow.module';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 describe('WorkflowModule', () => {
   let module: TestingModule;
@@ -16,7 +17,7 @@ describe('WorkflowModule', () => {
     }).compile();
   });
 
-  it('should be defined', () => {
+  test('should be defined', () => {
     expect(module).toBeDefined();
   });
 
@@ -24,4 +25,3 @@ describe('WorkflowModule', () => {
     await module.close();
   });
 });
-

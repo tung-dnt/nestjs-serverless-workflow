@@ -1,15 +1,24 @@
-import { Test } from '@nestjs/testing';
+import { LambdaEventHandler } from '@/adapter/lambda.adapater';
+import { OrchestratorService } from '@/workflow';
 import { type INestApplicationContext } from '@nestjs/common';
-import { LambdaEventHandler } from '../../packages/adapter/lambda.adapater';
-import type { SQSEvent, Context } from 'aws-lambda';
+import { Test } from '@nestjs/testing';
+import type { Context, SQSEvent } from 'aws-lambda';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
 describe('LambdaEventHandler', () => {
   let app: INestApplicationContext;
 
   beforeEach(async () => {
+    const mockOrchestratorService = {
+      transit: mock(async () => {}),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
-        // Add necessary mock providers
+        {
+          provide: OrchestratorService,
+          useValue: mockOrchestratorService,
+        },
       ],
     }).compile();
 
@@ -21,15 +30,15 @@ describe('LambdaEventHandler', () => {
     await app.close();
   });
 
-  it('should create handler function', () => {
+  test('should create handler function', () => {
     const handler = LambdaEventHandler(app);
     expect(handler).toBeDefined();
     expect(typeof handler).toBe('function');
   });
 
-  it('should handle SQS events', async () => {
+  test('should handle SQS events', async () => {
     const handler = LambdaEventHandler(app);
-    
+
     const mockEvent: SQSEvent = {
       Records: [
         {
@@ -55,7 +64,7 @@ describe('LambdaEventHandler', () => {
     } as Context;
 
     const result = await handler(mockEvent, mockContext, () => {});
-    
+
     expect(result).toBeDefined();
     if (result) {
       expect(result.batchItemFailures).toBeDefined();
@@ -63,4 +72,3 @@ describe('LambdaEventHandler', () => {
     }
   });
 });
-

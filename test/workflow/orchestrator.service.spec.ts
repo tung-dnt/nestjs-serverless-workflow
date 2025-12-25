@@ -1,24 +1,49 @@
+import { OrchestratorService } from '@/workflow/providers/ochestrator.service';
+import { StateRouterHelperFactory } from '@/workflow/providers/router.factory';
+import { DiscoveryService, ModuleRef } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
-import { OrchestratorService } from '../../packages/workflow/providers/ochestrator.service';
+import { beforeEach, describe, expect, test } from 'bun:test';
 
 describe('OrchestratorService', () => {
   let service: OrchestratorService;
 
   beforeEach(async () => {
+    const mockDiscoveryService = {
+      getProviders: () => [],
+    };
+
+    const mockStateRouterHelperFactory = {
+      create: () => ({}),
+    };
+
+    const mockModuleRef = {
+      get: () => ({}),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrchestratorService,
-        // Add mock providers as needed
+        {
+          provide: DiscoveryService,
+          useValue: mockDiscoveryService,
+        },
+        {
+          provide: StateRouterHelperFactory,
+          useValue: mockStateRouterHelperFactory,
+        },
+        {
+          provide: ModuleRef,
+          useValue: mockModuleRef,
+        },
       ],
     }).compile();
 
     service = module.get<OrchestratorService>(OrchestratorService);
   });
 
-  it('should be defined', () => {
+  test('should be defined', () => {
     expect(service).toBeDefined();
   });
 
   // Add more tests for transition logic, state management, etc.
 });
-

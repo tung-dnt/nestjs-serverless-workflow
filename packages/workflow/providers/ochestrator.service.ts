@@ -64,7 +64,9 @@ export class OrchestratorService {
       ];
 
       if (!handlerStore || handlerStore.length === 0 || !workflowDefinition) {
-        this.logger.warn(`No handlers found for workflow: ${workflowDefinition.name}`);
+        this.logger.warn(
+          `No handlers found for workflow: ${workflowDefinition?.name ?? instance.constructor.name}`,
+        );
         continue;
       }
 

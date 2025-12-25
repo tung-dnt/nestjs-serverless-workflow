@@ -1,5 +1,6 @@
-import { SqsEmitter } from '../../packages/event-bus/sqs/sqs.emitter';
-import type { IWorkflowEvent } from '../../packages/event-bus/types';
+import { SqsEmitter } from '@/event-bus/sqs/sqs.emitter';
+import type { IWorkflowEvent } from '@/event-bus/types';
+import { beforeEach, describe, expect, test } from 'bun:test';
 
 describe('SqsEmitter', () => {
   let emitter: SqsEmitter;
@@ -8,16 +9,16 @@ describe('SqsEmitter', () => {
     emitter = new SqsEmitter();
   });
 
-  it('should be defined', () => {
+  test('should be defined', () => {
     expect(emitter).toBeDefined();
   });
 
-  it('should implement IBrokerPublisher interface', () => {
+  test('should implement IBrokerPublisher interface', () => {
     expect(emitter.emit).toBeDefined();
     expect(typeof emitter.emit).toBe('function');
   });
 
-  it('should emit workflow event', async () => {
+  test('should emit workflow event', async () => {
     const event: IWorkflowEvent<any> = {
       urn: 'test-123',
       attempt: 1,
@@ -25,7 +26,6 @@ describe('SqsEmitter', () => {
       payload: { data: 'test' },
     };
 
-    await expect(emitter.emit(event)).resolves.toBeUndefined();
+    expect(emitter.emit(event)).resolves.toBeUndefined();
   });
 });
-

@@ -1,5 +1,6 @@
+import { WorkflowModule } from '@/workflow/workflow.module';
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkflowModule } from '../../packages/workflow/workflow.module';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 
 describe('Workflow Integration Tests', () => {
   let module: TestingModule;
@@ -23,20 +24,19 @@ describe('Workflow Integration Tests', () => {
   });
 
   describe('End-to-End Workflow Execution', () => {
-    it('should execute a complete workflow transition', async () => {
+    test('should execute a complete workflow transition', async () => {
       // Add integration test for complete workflow execution
       expect(true).toBe(true);
     });
 
-    it('should handle workflow events with retry logic', async () => {
+    test('should handle workflow events with retry logic', async () => {
       // Add integration test for retry behavior
       expect(true).toBe(true);
     });
 
-    it('should emit events to broker', async () => {
+    test('should emit events to broker', async () => {
       // Add integration test for event emission
       expect(true).toBe(true);
     });
   });
 });
-

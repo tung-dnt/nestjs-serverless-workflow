@@ -1,7 +1,8 @@
-import { UnretriableException } from '../../packages/exception/unretriable.exception';
+import { describe, test, expect } from 'bun:test';
+import { UnretriableException } from '@/exception/unretriable.exception';
 
 describe('UnretriableException', () => {
-  it('should create an exception with message', () => {
+  test('should create an exception with message', () => {
     const message = 'Test error message';
     const exception = new UnretriableException(message);
 
@@ -10,14 +11,14 @@ describe('UnretriableException', () => {
     expect(exception.name).toBe('UnretriableException');
   });
 
-  it('should be throwable', () => {
+  test('should be throwable', () => {
     const message = 'Test error';
     expect(() => {
       throw new UnretriableException(message);
     }).toThrow(UnretriableException);
   });
 
-  it('should be catchable as Error', () => {
+  test('should be catchable as Error', () => {
     try {
       throw new UnretriableException('test');
     } catch (error) {
@@ -26,4 +27,3 @@ describe('UnretriableException', () => {
     }
   });
 });
-
