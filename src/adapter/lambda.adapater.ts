@@ -3,12 +3,17 @@ import { OrchestratorService } from '@/workflow';
 import { type INestApplicationContext } from '@nestjs/common';
 import { type SQSHandler } from 'aws-lambda';
 
+// NOTDE:
+// - ReportBatchItemFailures must be enabled on SQS event source mapping
+// - Lambda must have sufficient timeout to process messages
+// - maxReceiveCount should be set as high as possible in main queue
 export const LambdaEventHandler =
   (app: INestApplicationContext): SQSHandler =>
   async (event, context) => {
     // Calculate safety window (5 seconds before timeout)
     const safetyWindowMs = context.getRemainingTimeInMillis() - 5000;
     const workflowRouter = app.get(OrchestratorService);
+    // For timeout retry only
     const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 
     // Track processed records

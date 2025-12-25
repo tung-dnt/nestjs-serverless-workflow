@@ -33,7 +33,7 @@ import { StateRouterHelperFactory } from './router.factory';
  *   +) BrokerPublisher.publish will implement delay queue via time calculated from RetryService.execute()
  * 4. Retry Service: Retry in state handler level via `IRetryHandler`
  *   +) If CompensationHandler
- * 5. Timeout handling: listen for timeout event emitted by Runtime Adapter
+ * 5. Timeout handling: listen for timeout event emitted by Runtime Adapter (DEV DONE - TESTING)
  */
 @Injectable()
 export class OrchestratorService {
@@ -175,7 +175,10 @@ export class OrchestratorService {
           if (!retryConfig) throw e;
 
           const { maxAttempts } = retryConfig;
-          if (e instanceof BadRequestException || e instanceof UnretriableException || attempt >= maxAttempts) throw e;
+          if (e instanceof BadRequestException || e instanceof UnretriableException || attempt >= maxAttempts) {
+            logger.error('Unretriable exception found!')
+            return;
+          }
 
           // TODO: add more payload: original method, payload, entity, retryConfigs
           await this.moduleRef.get<IRetryHandler>(retryConfig.handler).execute();
