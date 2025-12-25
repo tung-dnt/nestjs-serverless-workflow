@@ -43,17 +43,28 @@ Each example features:
 
 ## Features
 
-- Workflow Definitions: Define workflows using a simple, declarative syntax
-- State Management: Track and persist workflow states
-- Event-Driven Architecture: Built on NestJS's event system for flexible workflow triggers
-- Transition Rules: Configure complex transition conditions between workflow states
-- Extensible: Easily extend with custom actions, conditions, and triggers
-- TypeScript Support: Full TypeScript support with strong typing
-- Integration Friendly: Seamlessly integrates with existing NestJS applications
-- Kafka Integration: Easily integrate with Kafka for event-driven workflows
-- Stateless Design: Lightweight implementation with no additional storage requirements
+- **🌲 Tree-Shakable**: Modular architecture with subpath exports ensures minimal bundle size
+- **Workflow Definitions**: Define workflows using a simple, declarative syntax
+- **State Management**: Track and persist workflow states
+- **Event-Driven Architecture**: Built on NestJS's event system for flexible workflow triggers
+- **Transition Rules**: Configure complex transition conditions between workflow states
+- **Extensible**: Easily extend with custom actions, conditions, and triggers
+- **TypeScript Support**: Full TypeScript support with strong typing
+- **Integration Friendly**: Seamlessly integrates with existing NestJS applications
+- **Message Broker Integration**: Easily integrate with SQS, Kafka, RabbitMQ, and more
+- **Stateless Design**: Lightweight implementation with no additional storage requirements
+- **Serverless Ready**: Optimized for AWS Lambda with automatic timeout handling
 
-Documentation: https://@nestjs-serverless-workflow.github.io/libraries/docs/workflow/intro
+## 📚 Documentation
+
+Comprehensive documentation is available:
+- **[Getting Started](./docs/getting-started.md)** - Installation and basic usage
+- **[Workflow Module](./docs/workflow.md)** - State machines and transitions
+- **[Event Bus](./docs/event-bus.md)** - Message broker integration
+- **[Adapters](./docs/adapters.md)** - Runtime environment adapters
+- **[API Documentation](./docs/)** - Full API reference
+
+Online documentation: https://@nestjs-serverless-workflow.github.io/libraries/docs/workflow/intro
 
 # Stateless Architecture
 
@@ -93,14 +104,34 @@ The workflow engine simply reads and updates this state property according to yo
 ## Installation
 
 ```bash
-npm install @nestjs-serverless-workflow
+npm install nestjs-serverless-workflow
+```
+
+Or using bun:
+
+```bash
+bun add nestjs-serverless-workflow
 ```
 
 Or using yarn:
 
 ```bash
-yarn add @nestjs-serverless-workflow
+yarn add nestjs-serverless-workflow
 ```
+
+### Peer Dependencies
+
+This library requires the following peer dependencies:
+
+```bash
+npm install @nestjs/common @nestjs/core reflect-metadata rxjs
+```
+
+**Optional Dependencies** (only if you need specific features):
+
+- For AWS Lambda adapter: `@types/aws-lambda`
+- For SQS integration: `@aws-sdk/client-sqs`
+- For DynamoDB: `@aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb`
 
 ## Quick Start
 
@@ -147,9 +178,24 @@ When you configure SQS integration:
 
 ### Complete Example with SQS Integration
 
+## Using Subpath Exports
+
+The package uses modern subpath exports for better tree-shaking. Import only what you need:
+
+```typescript
+import { WorkflowModule } from 'nestjs-serverless-workflow/workflow';
+import { IBrokerPublisher } from 'nestjs-serverless-workflow/event-bus';
+import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+import { UnretriableException } from 'nestjs-serverless-workflow/exception';
+```
+
+This ensures that your bundle only includes the parts of the library you actually use, resulting in smaller bundle sizes.
+
+## Quick Start
+
 ````typescript
 import { Module } from '@nestjs/common';
-import { WorkflowModule, Workflow, OnEvent, Payload, Entity } from '@nestjs-serverless-workflow';
+import { WorkflowModule, Workflow, OnEvent, Payload, Entity } from 'nestjs-serverless-workflow/workflow';
 import { OrderEntityService } from './order-entity.service';
 
 

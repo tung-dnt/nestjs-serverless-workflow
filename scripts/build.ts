@@ -1,43 +1,25 @@
-import { $, build } from 'bun';
+import { $ } from 'bun';
 
+console.log('🧹 Cleaning dist directory...');
 await $`rm -rf dist`;
 
-const optionalRequirePackages = [
-  '@fastify/static',
-  '@fastify/view',
-  '@nestjs/microservices',
-  '@nestjs/microservices/microservices-module',
-  '@nestjs/platform-express',
-  '@nestjs/websockets/socket-module',
-  '@nestjs/websockets',
-  '@nestjs/microservices',
-  '@aws-sdk/client-dynamodb',
-  '@aws-sdk/lib-dynamodb',
-  'amqp-connection-manager',
-  'amqplib',
-  'cache-manager',
-  'cache-manager/package.json',
-  'class-transformer',
-  'class-validator',
-  'hbs',
-  'ioredis',
-  'kafkajs',
-  'mqtt',
-  'nats',
-];
+console.log('📦 Building library with TypeScript compiler...');
 
-const result = await build({
-  entrypoints: ['./src/main.ts'],
-  outdir: './dist',
-  target: 'bun',
-  external: optionalRequirePackages,
-  splitting: true,
-  bytecode: true,
-});
+// Use TypeScript compiler for proper ESM output with declarations
+const tscResult = await $`bunx tsc -p tsconfig.build.json`.nothrow();
 
-if (!result.success) {
-  console.log(result.logs[0]);
+if (tscResult.exitCode !== 0) {
+  console.error('❌ TypeScript compilation failed:');
+  console.error(tscResult.stderr.toString());
   process.exit(1);
 }
 
-console.log('Built successfully!');
+console.log('✅ Built successfully!');
+console.log('');
+console.log('📦 Package exports:');
+console.log('  - serverless-workflow/workflow');
+console.log('  - serverless-workflow/event-bus');
+console.log('  - serverless-workflow/exception');
+console.log('  - serverless-workflow/adapter');
+console.log('');
+console.log('💡 The library is now ready for publishing!');

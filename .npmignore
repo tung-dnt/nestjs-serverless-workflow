@@ -1,0 +1,52 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+# Build configuration
+tsconfig.json
+tsconfig.build.json
+bunfig.toml
+scripts/
+
+# Tests
+tests/
+test/
+**/*.spec.ts
+**/*.test.ts
+coverage/
+
+# Examples and docs (included in npm package for reference)
+# examples/
+# docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Development files
+.cursor/
+.vscode/
+.idea/
+*.log
+.env
+.env.*
+
+# Build artifacts
+node_modules/
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Serverless
+.serverless/
+serverless.yml
+
+# Misc
+CLAUDE.md
+.cursorignore
+.gitignore
+tslint.json
+
