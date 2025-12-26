@@ -5,7 +5,7 @@ The workflow module provides state machine capabilities for your NestJS applicat
 ## Installation
 
 ```typescript
-import { WorkflowModule } from 'serverless-workflow/workflow';
+import { WorkflowModule } from 'nestjs-serverless-workflow/core';
 ```
 
 ## Core Concepts
@@ -30,18 +30,12 @@ Transitions define how entities move from one state to another.
 
 ```typescript
 {
-  from: OrderStatus.Pending,
+  from: [OrderStatus.Pending],
   to: OrderStatus.Processing,
   event: 'order.submit',
   conditions: [
     (entity: Order, payload: any) => entity.items.length > 0,
     (entity: Order, payload: any) => entity.totalAmount > 0,
-  ],
-  actions: [
-    async (entity: Order, payload: any) => {
-      // Perform actions during transition
-      await notifyWarehouse(entity);
-    },
   ],
 }
 ```
@@ -52,7 +46,7 @@ Events trigger state transitions. Define event handlers using the `@OnEvent` dec
 
 ```typescript
 @OnEvent('order.submit')
-async onSubmit(@Entity entity: Order, @Payload() data: SubmitOrderDto) {
+async onSubmit(@Entity() entity: Order, @Payload() data: SubmitOrderDto) {
   // Validate and process the order
   entity.submittedAt = new Date();
   return entity;
@@ -65,6 +59,7 @@ async onSubmit(@Entity entity: Order, @Payload() data: SubmitOrderDto) {
 
 ```typescript
 @Workflow({
+  name: 'OrderWorkflow',
   states: {
     finals: [OrderStatus.Completed, OrderStatus.Failed],
     idles: [OrderStatus.Draft, OrderStatus.Pending],
@@ -73,6 +68,8 @@ async onSubmit(@Entity entity: Order, @Payload() data: SubmitOrderDto) {
   transitions: [
     // Define your transitions here
   ],
+  entityService: 'entity.order',
+  brokerPublisher: 'broker.order',
 })
 export class OrderWorkflow {
   // Event handlers
@@ -91,7 +88,7 @@ Add conditions to control when transitions can occur:
 
 ```typescript
 {
-  from: OrderStatus.Pending,
+  from: [OrderStatus.Pending],
   to: OrderStatus.Processing,
   event: 'order.submit',
   conditions: [
@@ -103,26 +100,6 @@ Add conditions to control when transitions can occur:
 
 All conditions must return `true` for the transition to proceed.
 
-### Transition Actions
-
-Execute custom logic during state transitions:
-
-```typescript
-{
-  from: OrderStatus.Processing,
-  to: OrderStatus.Completed,
-  event: 'order.complete',
-  actions: [
-    async (entity: Order, payload: any) => {
-      await emailService.sendConfirmation(entity);
-    },
-    async (entity: Order, payload: any) => {
-      await inventoryService.decrementStock(entity.items);
-    },
-  ],
-}
-```
-
 ## Decorators
 
 ### `@Workflow(config)`
@@ -133,7 +110,7 @@ Marks a class as a workflow definition.
 
 Defines an event handler for the specified event.
 
-### `@Entity`
+### `@Entity()`
 
 Injects the entity being processed into the handler.
 
@@ -143,7 +120,7 @@ Injects the event payload. Optionally, pass a DTO class for validation:
 
 ```typescript
 @OnEvent('order.submit')
-async onSubmit(@Entity entity: Order, @Payload(SubmitOrderDto) data: SubmitOrderDto) {
+async onSubmit(@Entity() entity: Order, @Payload(SubmitOrderDto) data: SubmitOrderDto) {
   // data is validated and transformed
 }
 ```
@@ -155,8 +132,20 @@ Adds retry logic to event handlers:
 ```typescript
 @OnEvent('order.payment')
 @WithRetry({ maxAttempts: 3, backoff: 'exponential' })
-async processPayment(@Entity entity: Order) {
+async processPayment(@Entity() entity: Order) {
   // Will retry up to 3 times with exponential backoff
+}
+```
+
+### `@OnDefault`
+
+Defines a fallback handler for unhandled events:
+
+```typescript
+@OnDefault
+async fallback(entity: Order, event: string, payload?: any) {
+  console.warn(`Unhandled event: ${event}`);
+  return entity;
 }
 ```
 
@@ -165,12 +154,12 @@ async processPayment(@Entity entity: Order) {
 Implement the `IWorkflowEntity` interface to integrate with your data layer:
 
 ```typescript
-export interface IWorkflowEntity<T = any> {
-  load(urn: string): Promise<T | null>;
-  save(entity: T): Promise<T>;
-  getStatus(entity: T): string;
-  setStatus(entity: T, status: string): T;
-  getUrn(entity: T): string;
+export interface IWorkflowEntity<T = any, State = string | number> {
+  create(): Promise<T>;
+  load(urn: string | number): Promise<T | null>;
+  update(entity: T, status: State): Promise<T>;
+  status(entity: T): State;
+  urn(entity: T): string | number;
 }
 ```
 
@@ -179,10 +168,13 @@ export interface IWorkflowEntity<T = any> {
 ```typescript
 WorkflowModule.register({
   imports: [DatabaseModule],
-  entities: [OrderEntityService, UserEntityService],
+  entities: [
+    { provide: 'entity.order', useClass: OrderEntityService },
+  ],
   workflows: [OrderWorkflow, UserWorkflow],
-  brokers: [SqsEmitter],
-  providers: [CustomService],
+  brokers: [
+    { provide: 'broker.order', useClass: SqsEmitter },
+  ],
 })
 ```
 
@@ -191,7 +183,7 @@ WorkflowModule.register({
 The `OrchestratorService` handles workflow execution:
 
 ```typescript
-import { OrchestratorService } from 'serverless-workflow/workflow';
+import { OrchestratorService } from 'nestjs-serverless-workflow/core';
 
 @Injectable()
 export class MyService {
@@ -210,10 +202,10 @@ export class MyService {
 Use `UnretriableException` for errors that should not be retried:
 
 ```typescript
-import { UnretriableException } from 'serverless-workflow/exception';
+import { UnretriableException } from 'nestjs-serverless-workflow/exception';
 
 @OnEvent('order.validate')
-async validate(@Entity entity: Order) {
+async validate(@Entity() entity: Order) {
   if (entity.totalAmount < 0) {
     throw new UnretriableException('Order amount cannot be negative');
   }
@@ -232,7 +224,7 @@ Configure retry behavior at the handler level:
   initialDelay: 1000,
   maxDelay: 30000,
 })
-async processPayment(@Entity entity: Order) {
+async processPayment(@Entity() entity: Order) {
   // This will retry with exponential backoff
 }
 ```
@@ -247,9 +239,5 @@ async processPayment(@Entity entity: Order) {
 
 ## Examples
 
-See the [examples directory](../examples/) for complete working examples:
-
-- [Order Processing](../examples/order/)
-- [DynamoDB Integration](../examples/dynamodb/)
-- [Usage Examples](../examples/usage/)
+See the [examples directory](./examples/lambda-order-state-machine) for complete working examples.
 

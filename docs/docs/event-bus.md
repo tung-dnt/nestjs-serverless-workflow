@@ -5,7 +5,7 @@ The event bus module provides integration with message brokers for event-driven 
 ## Installation
 
 ```typescript
-import { IBrokerPublisher, SqsEmitter } from 'serverless-workflow/event-bus';
+import { IBrokerPublisher, SqsEmitter } from 'nestjs-serverless-workflow/event-bus';
 ```
 
 ## Core Concepts
@@ -16,9 +16,10 @@ Events are the messages that trigger workflow transitions:
 
 ```typescript
 export interface IWorkflowEvent<T = any> {
-  urn: string;        // Unique identifier for the entity
-  event: string;      // Event name (e.g., 'order.submit')
-  payload?: T;        // Optional event data
+  topic: string;        // Topic for message segregation
+  urn: string | number; // Unique identifier for the entity (can be used as group ID)
+  payload?: T | object | string; // Optional event data
+  attempt: number;     // Retry attempt number
 }
 ```
 
@@ -45,9 +46,10 @@ npm install @aws-sdk/client-sqs
 2. Create an SQS emitter:
 
 ```typescript
-import { SqsEmitter } from 'serverless-workflow/event-bus';
+import { SqsEmitter } from 'nestjs-serverless-workflow/event-bus';
 import { Injectable } from '@nestjs/common';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { IWorkflowEvent } from 'nestjs-serverless-workflow/event-bus';
 
 @Injectable()
 export class MySqsEmitter extends SqsEmitter {
@@ -65,6 +67,7 @@ export class MySqsEmitter extends SqsEmitter {
       new SendMessageCommand({
         QueueUrl: this.queueUrl,
         MessageBody: JSON.stringify(payload),
+        MessageGroupId: payload.urn.toString(), // For FIFO queues
       })
     );
   }
@@ -74,7 +77,7 @@ export class MySqsEmitter extends SqsEmitter {
 3. Register the broker:
 
 ```typescript
-import { WorkflowModule } from 'serverless-workflow/workflow';
+import { WorkflowModule } from 'nestjs-serverless-workflow/core';
 import { MySqsEmitter } from './sqs.emitter';
 
 @Module({
@@ -82,7 +85,9 @@ import { MySqsEmitter } from './sqs.emitter';
     WorkflowModule.register({
       entities: [],
       workflows: [],
-      brokers: [MySqsEmitter],
+      brokers: [
+        { provide: 'broker.order', useClass: MySqsEmitter },
+      ],
     }),
   ],
 })
@@ -96,7 +101,7 @@ Implement the `IBrokerPublisher` interface to create custom brokers:
 ### Kafka Example
 
 ```typescript
-import { IBrokerPublisher, IWorkflowEvent } from 'serverless-workflow/event-bus';
+import { IBrokerPublisher, IWorkflowEvent } from 'nestjs-serverless-workflow/event-bus';
 import { Injectable } from '@nestjs/common';
 import { Kafka, Producer } from 'kafkajs';
 
@@ -123,7 +128,7 @@ export class KafkaEmitter implements IBrokerPublisher {
       topic: this.topic,
       messages: [
         {
-          key: payload.urn,
+          key: payload.urn.toString(),
           value: JSON.stringify(payload),
         },
       ],
@@ -139,7 +144,7 @@ export class KafkaEmitter implements IBrokerPublisher {
 ### RabbitMQ Example
 
 ```typescript
-import { IBrokerPublisher, IWorkflowEvent } from 'serverless-workflow/event-bus';
+import { IBrokerPublisher, IWorkflowEvent } from 'nestjs-serverless-workflow/event-bus';
 import { Injectable } from '@nestjs/common';
 import * as amqp from 'amqplib';
 
@@ -164,7 +169,7 @@ export class RabbitMQEmitter implements IBrokerPublisher {
   async emit<T>(payload: IWorkflowEvent<T>): Promise<void> {
     this.channel.publish(
       this.exchange,
-      payload.event,
+      payload.topic,
       Buffer.from(JSON.stringify(payload)),
       { persistent: true }
     );
@@ -182,18 +187,22 @@ export class RabbitMQEmitter implements IBrokerPublisher {
 ### From Within Workflows
 
 ```typescript
-import { Injectable } from '@nestjs/common';
-import { IBrokerPublisher, IWorkflowEvent } from 'serverless-workflow/event-bus';
+import { Injectable, Inject } from '@nestjs/common';
+import { IBrokerPublisher, IWorkflowEvent } from 'nestjs-serverless-workflow/event-bus';
 
 @Injectable()
 export class OrderService {
-  constructor(private broker: IBrokerPublisher) {}
+  constructor(
+    @Inject('broker.order')
+    private broker: IBrokerPublisher
+  ) {}
 
   async createOrder(orderId: string, data: any) {
     const event: IWorkflowEvent = {
+      topic: 'order.created',
       urn: orderId,
-      event: 'order.created',
       payload: data,
+      attempt: 0,
     };
 
     await this.broker.emit(event);
@@ -209,7 +218,10 @@ External systems can publish events to trigger workflows:
 // HTTP endpoint to trigger workflow events
 @Controller('events')
 export class EventsController {
-  constructor(private broker: IBrokerPublisher) {}
+  constructor(
+    @Inject('broker.order')
+    private broker: IBrokerPublisher
+  ) {}
 
   @Post('trigger')
   async trigger(@Body() event: IWorkflowEvent) {
@@ -225,12 +237,13 @@ export class EventsController {
 
 ```json
 {
+  "topic": "order.submit",
   "urn": "order-12345",
-  "event": "order.submit",
   "payload": {
     "items": ["item1", "item2"],
     "total": 150.00
-  }
+  },
+  "attempt": 0
 }
 ```
 
@@ -238,8 +251,9 @@ export class EventsController {
 
 ```json
 {
+  "topic": "order.cancel",
   "urn": "order-12345",
-  "event": "order.cancel"
+  "attempt": 0
 }
 ```
 
@@ -273,8 +287,8 @@ export const handler: SQSHandler = async (event, context) => {
 
 Configure DLQs for messages that fail repeatedly:
 
-```typescript
-// SQS Queue Configuration (serverless.yml or AWS Console)
+```yaml
+# SQS Queue Configuration (serverless.yml or AWS Console)
 Resources:
   WorkflowQueue:
     Type: AWS::SQS::Queue
@@ -292,13 +306,8 @@ Resources:
 4. **Use batch processing**: Process multiple events in a single invocation when possible
 5. **Implement idempotency**: Design handlers to be safely retried
 
-## Examples
-
-- [SQS Integration Example](../examples/order/mock-broker.service.ts)
-- [Lambda Handler with SQS](../examples/usage/lambda.ts)
-
 ## Related Documentation
 
-- [Lambda Adapter](./adapters.md) - Use with AWS Lambda
-- [Workflow Module](./workflow.md) - Define workflows
+- [Lambda Adapter](./adapters) - Use with AWS Lambda
+- [Workflow Module](./workflow) - Define workflows
 

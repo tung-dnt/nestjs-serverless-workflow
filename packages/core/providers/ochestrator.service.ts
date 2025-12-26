@@ -11,8 +11,8 @@ import type {
   IWorkflowRouteWithSaga,
   TDefaultHandler,
   TEither,
-} from '@/workflow';
-import { getRetryKey, WORKFLOW_DEFAULT_EVENT, WORKFLOW_DEFINITION_KEY, WORKFLOW_HANDLER_KEY } from '@/workflow';
+} from '@/core';
+import { getRetryKey, WORKFLOW_DEFAULT_EVENT, WORKFLOW_DEFINITION_KEY, WORKFLOW_HANDLER_KEY } from '@/core';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DiscoveryService, ModuleRef } from '@nestjs/core';
 import { StateRouterHelperFactory } from './router.factory';

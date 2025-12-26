@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide will help you get started with the serverless-workflow library.
+This guide will help you get started with the nestjs-serverless-workflow library.
 
 ## Installation
 
@@ -8,13 +8,13 @@ Install the package and its peer dependencies:
 
 ```bash
 # Using npm
-npm install serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
+npm install nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
 
 # Using bun
-bun add serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
+bun add nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
 
 # Using yarn
-yarn add serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
+yarn add nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
 ```
 
 ## Basic Usage
@@ -23,7 +23,7 @@ yarn add serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
 
 ```typescript
 import { Module } from '@nestjs/common';
-import { WorkflowModule } from 'serverless-workflow/workflow';
+import { WorkflowModule } from 'nestjs-serverless-workflow/core';
 
 @Module({
   imports: [
@@ -57,37 +57,40 @@ export class Order {
 ### 3. Create a Workflow Definition
 
 ```typescript
-import { Workflow, OnEvent, Entity, Payload } from 'serverless-workflow/workflow';
+import { Workflow, OnEvent, Entity, Payload } from 'nestjs-serverless-workflow/core';
 
 @Workflow({
+  name: 'OrderWorkflow',
   states: {
     finals: [OrderStatus.Completed, OrderStatus.Failed],
-    idles: [OrderStatus.Pending, OrderStatus.Processing],
+    idles: [OrderStatus.Pending],
     failed: OrderStatus.Failed,
   },
   transitions: [
     {
-      from: OrderStatus.Pending,
+      from: [OrderStatus.Pending],
       to: OrderStatus.Processing,
       event: 'order.submit',
     },
     {
-      from: OrderStatus.Processing,
+      from: [OrderStatus.Processing],
       to: OrderStatus.Completed,
       event: 'order.complete',
     },
   ],
+  entityService: 'entity.order',
+  brokerPublisher: 'broker.order',
 })
 export class OrderWorkflow {
   @OnEvent('order.submit')
-  async onSubmit(@Entity entity: Order, @Payload() data: any) {
+  async onSubmit(@Entity() entity: Order, @Payload() data: any) {
     // Handle submit event
     console.log('Order submitted:', entity.id);
     return entity;
   }
 
   @OnEvent('order.complete')
-  async onComplete(@Entity entity: Order) {
+  async onComplete(@Entity() entity: Order) {
     // Handle complete event
     console.log('Order completed:', entity.id);
     return entity;
@@ -99,30 +102,27 @@ export class OrderWorkflow {
 
 ```typescript
 import { Injectable } from '@nestjs/common';
-import { IWorkflowEntity } from 'serverless-workflow/workflow';
+import { IWorkflowEntity } from 'nestjs-serverless-workflow/core';
 
 @Injectable()
-export class OrderEntityService implements IWorkflowEntity<Order> {
+export class OrderEntityService implements IWorkflowEntity<Order, OrderStatus> {
+  async create(): Promise<Order> {
+    // Create new order
+  }
+
   async load(urn: string): Promise<Order | null> {
-    // Load entity from your data source
-    return await this.repository.findOne({ id: urn });
+    // Load order from database
   }
 
-  async save(entity: Order): Promise<Order> {
-    // Save entity to your data source
-    return await this.repository.save(entity);
+  async update(entity: Order, status: OrderStatus): Promise<Order> {
+    // Update order status
   }
 
-  getStatus(entity: Order): string {
+  status(entity: Order): OrderStatus {
     return entity.status;
   }
 
-  setStatus(entity: Order, status: string): Order {
-    entity.status = status as OrderStatus;
-    return entity;
-  }
-
-  getUrn(entity: Order): string {
+  urn(entity: Order): string {
     return entity.id;
   }
 }
@@ -132,16 +132,20 @@ export class OrderEntityService implements IWorkflowEntity<Order> {
 
 ```typescript
 import { Module } from '@nestjs/common';
-import { WorkflowModule } from 'serverless-workflow/workflow';
+import { WorkflowModule } from 'nestjs-serverless-workflow/core';
 import { OrderWorkflow } from './order.workflow';
 import { OrderEntityService } from './order-entity.service';
 
 @Module({
   imports: [
     WorkflowModule.register({
-      entities: [OrderEntityService],
+      entities: [
+        { provide: 'entity.order', useClass: OrderEntityService },
+      ],
       workflows: [OrderWorkflow],
-      brokers: [],
+      brokers: [
+        { provide: 'broker.order', useClass: MySqsEmitter },
+      ],
     }),
   ],
 })
@@ -150,10 +154,10 @@ export class OrderModule {}
 
 ## Next Steps
 
-- [Workflow Configuration](./workflow.md) - Learn about workflow states, transitions, and events
-- [Event Bus Integration](./event-bus.md) - Connect to SQS and other message brokers
-- [Lambda Adapter](./adapters.md) - Deploy your workflows to AWS Lambda
-- [Examples](../examples/) - Explore complete working examples
+- [Workflow Configuration](./workflow) - Learn about workflow states, transitions, and events
+- [Event Bus Integration](./event-bus) - Connect to SQS and other message brokers
+- [Lambda Adapter](./adapters) - Deploy your workflows to AWS Lambda
+- [Examples](./examples/lambda-order-state-machine) - Explore complete working examples
 
 ## Tree-Shaking Benefits
 
@@ -161,7 +165,7 @@ The library uses subpath exports, which means your bundler can eliminate unused 
 
 ```typescript
 // Only imports what you need
-import { WorkflowModule } from 'serverless-workflow/workflow';
+import { WorkflowModule } from 'nestjs-serverless-workflow/core';
 // No event-bus, adapter, or exception code is included in your bundle
 ```
 

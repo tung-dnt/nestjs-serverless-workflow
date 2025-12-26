@@ -35,9 +35,15 @@
       "@/*": ["./packages/*"]
     }
   },
+  "include": [
+    "packages/**/*"
+  ],
   "exclude": [
     "node_modules",
     "dist",
-    "examples"
+    "examples",
+    "docs",
+    "test",
+    "scripts"
   ]
 }
