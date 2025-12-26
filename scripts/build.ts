@@ -14,6 +14,18 @@ if (tscResult.exitCode !== 0) {
   process.exit(1);
 }
 
+console.log('🔄 Resolving path aliases...');
+
+// Transform TypeScript path aliases to relative imports
+// Use --resolve-full-paths to resolve to the most accurate relative paths
+const aliasResult = await $`tsc-alias -p tsconfig.build.json --resolve-full-paths`.nothrow();
+
+if (aliasResult.exitCode !== 0) {
+  console.error('❌ Path alias resolution failed:');
+  console.error(aliasResult.stderr.toString());
+  process.exit(1);
+}
+
 console.log('✅ Built successfully!');
 console.log('');
 console.log('📦 Package exports:');

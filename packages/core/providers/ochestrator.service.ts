@@ -1,5 +1,3 @@
-import type { IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
-import { UnretriableException } from '@/exception/unretriable.exception';
 import type {
   IBackoffRetryConfig,
   IRetryHandler,
@@ -13,7 +11,9 @@ import type {
   TEither,
 } from '@/core';
 import { getRetryKey, WORKFLOW_DEFAULT_EVENT, WORKFLOW_DEFINITION_KEY, WORKFLOW_HANDLER_KEY } from '@/core';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import type { IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
+import { UnretriableException } from '@/exception/unretriable.exception';
+import { BadRequestException, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { DiscoveryService, ModuleRef } from '@nestjs/core';
 import { StateRouterHelperFactory } from './router.factory';
 
@@ -36,7 +36,7 @@ import { StateRouterHelperFactory } from './router.factory';
  * 5. Timeout handling: listen for timeout event emitted by Runtime Adapter (DEV DONE - TESTING)
  */
 @Injectable()
-export class OrchestratorService {
+export class OrchestratorService implements OnModuleInit {
   private routes = new Map<string, TEither<IWorkflowDefaultRoute, IWorkflowRouteWithSaga>>();
   private readonly logger = new Logger(OrchestratorService.name);
 
@@ -64,9 +64,7 @@ export class OrchestratorService {
       ];
 
       if (!handlerStore || handlerStore.length === 0 || !workflowDefinition) {
-        this.logger.warn(
-          `No handlers found for workflow: ${workflowDefinition?.name ?? instance.constructor.name}`,
-        );
+        this.logger.warn(`No handlers found for workflow: ${workflowDefinition?.name ?? instance.constructor.name}`);
         continue;
       }
 
@@ -178,7 +176,7 @@ export class OrchestratorService {
 
           const { maxAttempts } = retryConfig;
           if (e instanceof BadRequestException || e instanceof UnretriableException || attempt >= maxAttempts) {
-            logger.error('Unretriable exception found!')
+            logger.error('Unretriable exception found!');
             return;
           }
 

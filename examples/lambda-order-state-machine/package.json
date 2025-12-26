@@ -1,6 +1,8 @@
 {
   "name": "lambda-order-state-machine",
   "version": "1.0.0",
+  "author": "Thomas Do (tung-dnt)",
+  "license": "MIT",
   "description": "Complete AWS Lambda example using nestjs-serverless-workflow with SQS and DynamoDB",
   "type": "module",
   "main": "dist/lambda.js",
@@ -12,13 +14,13 @@
     "remove": "serverless remove",
     "logs": "serverless logs -f order-queue-worker -t",
     "invoke": "serverless invoke -f order-queue-worker",
-    "local": "bun run src/main.ts",
-    "dev": "bun --watch src/main.ts",
+    "start": "bun run src/main.ts",
+    "start:dev": "bun --hot src/main.ts",
     "test": "echo \"No tests yet\"",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "nestjs-serverless-workflow": "latest",
+    "nestjs-serverless-workflow": "file:../..",
     "@nestjs/common": "^11.1.3",
     "@nestjs/core": "^11.1.3",
     "@nestjs/platform-express": "^11.0.1",
@@ -54,7 +56,5 @@
     "sqs",
     "dynamodb",
     "aws"
-  ],
-  "author": "Thomas Do (tung-dnt)",
-  "license": "MIT"
+  ]
 }
