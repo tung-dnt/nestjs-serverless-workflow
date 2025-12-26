@@ -32,7 +32,11 @@
     // Path aliases
     "paths": {
       "*": ["./*"],
-      "@/*": ["./packages/*"]
+      "@/*": ["./packages/*"],
+      "nestjs-serverless-workflow/core": ["./packages/core/index.ts"],
+      "nestjs-serverless-workflow/event-bus": ["./packages/event-bus/index.ts"],
+      "nestjs-serverless-workflow/exception": ["./packages/exception/index.ts"],
+      "nestjs-serverless-workflow/adapter": ["./packages/adapter/index.ts"]
     }
   },
   "include": [
