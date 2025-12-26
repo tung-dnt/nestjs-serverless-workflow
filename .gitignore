@@ -41,3 +41,5 @@ coverage/
 # OS
 Thumbs.db
 .npmrc
+
+docs/docs/README.md
