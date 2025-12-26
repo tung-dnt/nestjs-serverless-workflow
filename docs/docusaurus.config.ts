@@ -6,7 +6,7 @@ import TsconfigPathsPlugin from 'tsconfig-paths-webpack-plugin';
 const config: Config = {
   title: 'NestJS Serverless Workflow',
   tagline: 'Workflow and State Machines for NestJS',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/logo.jpeg',
 
   // Set the production url of your site here
   url: 'https://tung-dnt.github.io',
@@ -19,7 +19,7 @@ const config: Config = {
   organizationName: 'tung-dnt', // Usually your GitHub org/user name.
   projectName: 'nestjs-serverless-workflow', // Usually your repo name.
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -123,7 +123,7 @@ const config: Config = {
               href: 'https://github.com/tung-dnt/nestjs-serverless-workflow',
             },
             {
-              label: 'NPM',
+              label: 'npm',
               href: 'https://www.npmjs.com/package/nestjs-serverless-workflow',
             },
           ],

@@ -1,7 +1,5 @@
 # NestJS Serverless Workflow
 
-![NestJS Serverless Workflow Logo](https://raw.githubusercontent.com/tung-dnt/nestjs-serverless-workflow/main/docs/static/img/logo.jpeg)
-
 [![npm version](https://img.shields.io/npm/v/nestjs-serverless-workflow.svg)](https://www.npmjs.com/package/nestjs-serverless-workflow)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -189,9 +187,9 @@ This ensures minimal bundle sizes and faster cold starts in serverless environme
 
 ## Examples
 
-Check out the [examples directory](../../examples/) for complete working examples:
+Check out the examples for complete working examples:
 
-- **[Lambda Order State Machine](../../examples/lambda-order-state-machine/)**: Complete AWS Lambda example with SQS and DynamoDB
+- **[Lambda Order State Machine](/examples/lambda-order-state-machine)**: Complete AWS Lambda example with SQS and DynamoDB
 
 ## Key Concepts
 
@@ -254,7 +252,7 @@ export const handler: SQSHandler = LambdaEventHandler(app);
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](../../CONTRIBUTING.md) for details on:
+Contributions are welcome! Please read our [Contributing Guide](https://github.com/tung-dnt/nestjs-serverless-workflow/blob/main/CONTRIBUTING.md) for details on:
 
 - Code style and conventions
 - Development setup
@@ -263,7 +261,7 @@ Contributions are welcome! Please read our [Contributing Guide](../../CONTRIBUTI
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/tung-dnt/nestjs-serverless-workflow/blob/main/CONTRIBUTING.md) file for details.
 
 ## Author
 
