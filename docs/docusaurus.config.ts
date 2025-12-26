@@ -171,7 +171,7 @@ const config: Config = {
         configureWebpack(_config, _isServer) {
           return {
             resolve: {
-              plugins: [new TsconfigPathsPlugin()],
+              plugins: [new TsconfigPathsPlugin({ baseUrl: '.' })],
             },
           };
         },
