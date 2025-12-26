@@ -54,12 +54,12 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/logo.jpeg',
     navbar: {
       title: 'NestJS Serverless Workflow',
       logo: {
         alt: 'NestJS Serverless Workflow Logo',
-        src: 'img/logo.svg',
+        src: 'img/logo.jpeg',
       },
       items: [
         {

@@ -46,11 +46,11 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run tests
-        run: bun test
+        run: bun test:all
         continue-on-error: true
 
       - name: Type check
-        run: bun run typecheck
+        run: bun run typecheck:all
 
       - name: Build package
         run: bun run build

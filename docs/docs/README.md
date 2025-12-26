@@ -1,5 +1,7 @@
 # NestJS Serverless Workflow Documentation
 
+![NestJS Serverless Workflow Logo](/img/logo.jpeg)
+
 Welcome to the NestJS Serverless Workflow documentation!
 
 This library provides a powerful, tree-shakable workflow and state machine engine for NestJS applications, optimized for serverless environments like AWS Lambda.

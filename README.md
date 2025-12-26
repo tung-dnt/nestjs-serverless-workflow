@@ -1,5 +1,7 @@
 # NestJS Serverless Workflow
 
+![NestJS Serverless Workflow Logo](/static/logo/logo.jpeg)
+
 [![npm version](https://img.shields.io/npm/v/nestjs-serverless-workflow.svg)](https://www.npmjs.com/package/nestjs-serverless-workflow)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -281,4 +283,3 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 - [NestJS](https://nestjs.com/) - A progressive Node.js framework
 - [AWS Lambda](https://aws.amazon.com/lambda/) - Serverless compute service
 - [AWS SQS](https://aws.amazon.com/sqs/) - Message queuing service
-
