@@ -45,7 +45,9 @@
     "test:cov": "bun test --coverage",
     "test:debug": "bun --inspect-brk --runInBand",
     "test:e2e": "bun test ./tests/app.e2e-spec.ts",
+    "test:all": "bun run scripts/test.ts",
     "typecheck": "tsgo --noEmit",
+    "typecheck:all": "bun run scripts/typecheck.ts",
     "prepublishOnly": "bun run build"
   },
   "dependencies": {

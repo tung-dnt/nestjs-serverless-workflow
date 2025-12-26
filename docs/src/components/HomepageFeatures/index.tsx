@@ -1,5 +1,7 @@
-import clsx from 'clsx';
 import Heading from '@theme/Heading';
+import clsx from 'clsx';
+import { JSX } from 'react/jsx-runtime';
+
 import styles from './styles.module.css';
 
 type FeatureItem = {
@@ -89,4 +91,3 @@ export default function HomepageFeatures(): JSX.Element {
     </section>
   );
 }
-
