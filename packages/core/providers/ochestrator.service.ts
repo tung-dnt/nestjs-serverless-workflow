@@ -63,10 +63,7 @@ export class OrchestratorService implements OnModuleInit {
         [],
       ];
 
-      if (!handlerStore || handlerStore.length === 0 || !workflowDefinition) {
-        this.logger.warn(`No handlers found for workflow: ${workflowDefinition?.name ?? instance.constructor.name}`);
-        continue;
-      }
+      if (!handlerStore || handlerStore.length === 0 || !workflowDefinition) continue;
 
       const brokerPublisher = this.moduleRef.get<IBrokerPublisher>(workflowDefinition.brokerPublisher, {
         strict: true,
@@ -84,7 +81,11 @@ export class OrchestratorService implements OnModuleInit {
             `Duplicate workflow event handler detected for event: ${handler.event} in workflow: ${workflowDefinition.name}`,
           );
         }
-        const retryConfig = this.moduleRef.get<IBackoffRetryConfig>(getRetryKey(handler.name));
+        // Retrieve retry config from metadata on the handler function (not from DI container)
+        const retryConfig = Reflect.getMetadata(getRetryKey(handler.name), handler.handler) as
+          | IBackoffRetryConfig
+          | undefined;
+
         this.routes.set(handler.event, {
           handler: handler.handler,
           definition: workflowDefinition,
