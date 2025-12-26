@@ -1,6 +1,6 @@
 {
   "name": "nestjs-serverless-workflow",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "private": false,
   "description": "Workflow and State Machines for NestJS",
   "license": "MIT",
