@@ -34,5 +34,7 @@
       "*": ["./*"],
       "@/*": ["./packages/*"],
     },
-  }
+  },
+  "include": ["packages/**/*"],
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "examples", "docs"]
 }
