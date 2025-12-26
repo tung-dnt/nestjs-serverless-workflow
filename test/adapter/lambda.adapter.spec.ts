@@ -1,5 +1,5 @@
 import { LambdaEventHandler } from '@/adapter/lambda.adapater';
-import { OrchestratorService } from '@/workflow';
+import { OrchestratorService } from '@/core';
 import { type INestApplicationContext } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Context, SQSEvent } from 'aws-lambda';

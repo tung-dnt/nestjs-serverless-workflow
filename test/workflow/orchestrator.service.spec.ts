@@ -1,5 +1,5 @@
-import { OrchestratorService } from '@/workflow/providers/ochestrator.service';
-import { StateRouterHelperFactory } from '@/workflow/providers/router.factory';
+import { OrchestratorService } from '@/core/providers/ochestrator.service';
+import { StateRouterHelperFactory } from '@/core/providers/router.factory';
 import { DiscoveryService, ModuleRef } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { beforeEach, describe, expect, test } from 'bun:test';

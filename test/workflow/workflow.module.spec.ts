@@ -1,4 +1,4 @@
-import { WorkflowModule } from '@/workflow/workflow.module';
+import { WorkflowModule } from '@/core/workflow.module';
 import { Test, TestingModule } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
