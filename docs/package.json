@@ -30,6 +30,7 @@
     "@docusaurus/tsconfig": "^3.9.2",
     "@docusaurus/types": "^3.9.2",
     "@typescript/native-preview": "^7.0.0-dev.20251225.1",
+    "tsconfig-paths-webpack-plugin": "^4.2.0",
     "typescript": "^5.9.3"
   },
   "browserslist": {
