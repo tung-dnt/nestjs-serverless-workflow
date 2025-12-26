@@ -1,44 +1,38 @@
 {
   "compilerOptions": {
-    // Target environment
-    "lib": ["ES2020"],
-    "target": "ES2020",
+    // Enable latest features
+    "lib": ["ESNext", "DOM"],
+    "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "node",
-    "outDir": "./dist",
+    "moduleDetection": "force",
+    "allowJs": true,
 
-    // Enable compilation
-    "noEmit": false,
-    "declaration": false,
-    "sourceMap": true,
+    // Bundler mode
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
 
-    // NestJS decorators
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-
-    // Module system
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-
-    // Type checking
+    // Best practices
     "strict": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
 
-    // Disabled for flexibility
+    // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
 
-    // Path mapping
+    // For NestJS
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+
+    // Path aliases
     "paths": {
       "*": ["./*"],
       "@/*": ["./src/*"],
     },
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"],
 }

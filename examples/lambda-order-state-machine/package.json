@@ -20,7 +20,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "nestjs-serverless-workflow": "file:../..",
+    "nestjs-serverless-workflow": "latest",
     "@nestjs/common": "^11.1.3",
     "@nestjs/core": "^11.1.3",
     "@nestjs/platform-express": "^11.0.1",
@@ -43,6 +43,9 @@
     "serverless-plugin-include-dependencies": "^6.1.1",
     "typescript": "^5.8.3"
   },
+  "trustedDependencies": [
+    "@nestjs/core"
+  ],
   "engines": {
     "node": ">=20.0.0",
     "bun": ">=1.3.4"
