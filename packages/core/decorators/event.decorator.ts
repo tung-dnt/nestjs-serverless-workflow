@@ -1,4 +1,4 @@
-import type { ISagaConfig, IWorkflowHandler } from '@/workflow';
+import type { ISagaConfig, IWorkflowHandler } from '@/core';
 
 export const WORKFLOW_HANDLER_KEY = 'workflow:metadata';
 

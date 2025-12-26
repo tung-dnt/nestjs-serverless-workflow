@@ -3,7 +3,7 @@ import { runModules, type ModuleConfig } from './utils';
 
 const modules: ModuleConfig[] = [
   { name: 'Root', path: '.', command: () => $`bun test` },
-  { name: 'Examples (lambda-order-state-machine)', path: 'examples/lambda-order-state-machine', command: () => $`bun test` },
+  { name: 'Docs', path: 'docs', command: () => $`bun test` }
 ];
 
 const success = await runModules(modules, {

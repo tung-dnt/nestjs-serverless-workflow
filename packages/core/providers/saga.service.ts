@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { IBrokerPublisher } from '@/event-bus';
-import type { SagaContext, ISagaStep, ISagaConfig, IWorkflowDefinition, ISagaHistoryStore } from '@/workflow';
-import { RollbackStrategy, SagaStatus } from '@/workflow';
+import type { SagaContext, ISagaStep, ISagaConfig, IWorkflowDefinition, ISagaHistoryStore } from '@/core';
+import { RollbackStrategy, SagaStatus } from '@/core';
 
 @Injectable()
 export class SagaService {

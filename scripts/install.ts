@@ -4,7 +4,6 @@ import { runModules, type ModuleConfig } from './utils';
 const modules: ModuleConfig[] = [
   { name: 'Root', path: '.', command: () => $`bun install` },
   { name: 'Docs', path: 'docs', command: () => $`bun install` },
-  { name: 'Examples (lambda-order-state-machine)', path: 'examples/lambda-order-state-machine', command: () => $`bun install` },
 ];
 
 const success = await runModules(modules, {

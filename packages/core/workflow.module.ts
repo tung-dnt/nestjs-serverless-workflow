@@ -1,5 +1,5 @@
 import type { IBrokerPublisher } from '@/event-bus';
-import { OrchestratorService, StateRouterHelperFactory } from '@/workflow';
+import { OrchestratorService, StateRouterHelperFactory } from '@/core';
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import type { IWorkflowEntity } from './types';

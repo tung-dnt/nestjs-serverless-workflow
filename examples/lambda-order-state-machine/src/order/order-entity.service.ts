@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { GetItemCommand, PutItemCommand } from 'dynamodb-toolbox';
-import type { IWorkflowEntity } from 'nestjs-serverless-workflow/workflow';
+import type { IWorkflowEntity } from 'nestjs-serverless-workflow/core';
 import { uuidv7 } from 'uuidv7';
 
 import { type Order, OrderEntity, OrderState } from '../dynamodb/order.table';

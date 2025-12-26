@@ -6,7 +6,7 @@ import type {
   ISagaRollbackRule,
   ITransitionEvent,
   IWorkflowEntity,
-} from '@/workflow';
+} from '@/core';
 
 /**
  * Defines the structure of a workflow definition, which includes the following properties:

@@ -1,5 +1,5 @@
 import { type IWorkflowEvent } from '@/event-bus';
-import { OrchestratorService } from '@/workflow';
+import { OrchestratorService } from '@/core';
 import { type INestApplicationContext } from '@nestjs/common';
 import { type SQSHandler } from 'aws-lambda';
 
