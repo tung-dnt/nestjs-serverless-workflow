@@ -5,22 +5,20 @@ Adapters help integrate the workflow engine with different runtime environments.
 ## Installation
 
 ```typescript
-import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+import { LambdaEventHandler, LambdaStepHandler, createLambdaStepHandlers } from 'nestjs-serverless-workflow/adapter';
 ```
 
 ## Lambda Adapter
 
-The Lambda adapter enables running workflows in AWS Lambda with SQS event sources.
+The Lambda adapter provides multiple ways to run workflows in AWS Lambda:
 
-### Setup
+1. **`LambdaEventHandler`**: Full workflow orchestration with automatic transitions (SQS-triggered)
+2. **`LambdaStepHandler`**: Single-step execution for AWS Step Functions integration
+3. **`createLambdaStepHandlers`**: Creates individual handlers mapped to workflow events
 
-1. Install AWS Lambda types:
+### Option 1: Full Orchestration (LambdaEventHandler)
 
-```bash
-npm install -D @types/aws-lambda
-```
-
-2. Create a Lambda handler:
+Use this when you want the library to manage the entire state machine internally via SQS.
 
 ```typescript
 import { NestFactory } from '@nestjs/core';
@@ -36,9 +34,96 @@ await app.init();
 export const handler: SQSHandler = LambdaEventHandler(app);
 ```
 
-### Features
+### Option 2: Step Functions Integration (LambdaStepHandler)
 
-#### Automatic Timeout Handling
+Use this when AWS Step Functions manages the state machine externally. This is the recommended approach for durable workflows as it delegates state machine management to AWS.
+
+```typescript
+import { NestFactory } from '@nestjs/core';
+import { LambdaStepHandler } from 'nestjs-serverless-workflow/adapter';
+import { AppModule } from './app.module';
+
+const app = await NestFactory.createApplicationContext(AppModule);
+await app.init();
+
+// Single handler that executes any workflow step
+export const handler = LambdaStepHandler(app);
+```
+
+**Step Functions State Machine Definition (AWS CDK):**
+
+```typescript
+import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
+import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
+
+const createOrderTask = new tasks.LambdaInvoke(this, 'CreateOrder', {
+  lambdaFunction: orderHandler,
+  payload: sfn.TaskInput.fromObject({
+    topic: 'order.created',
+    'urn.$': '$.orderId',
+    'payload.$': '$',
+  }),
+  resultPath: '$.stepResult',
+});
+
+const processOrderTask = new tasks.LambdaInvoke(this, 'ProcessOrder', {
+  lambdaFunction: orderHandler,
+  payload: sfn.TaskInput.fromObject({
+    topic: 'order.processing',
+    'urn.$': '$.stepResult.Payload.entity.id',
+    'payload.$': '$.stepResult.Payload.handlerResult',
+  }),
+  resultPath: '$.stepResult',
+});
+
+const definition = createOrderTask
+  .next(processOrderTask)
+  .next(new sfn.Succeed(this, 'OrderComplete'));
+
+new sfn.StateMachine(this, 'OrderStateMachine', {
+  definition,
+});
+```
+
+### Option 3: Per-Event Handlers (createLambdaStepHandlers)
+
+Use this when you need separate Lambda functions for each workflow event.
+
+```typescript
+import { NestFactory } from '@nestjs/core';
+import { createLambdaStepHandlers } from 'nestjs-serverless-workflow/adapter';
+import { AppModule } from './app.module';
+
+const app = await NestFactory.createApplicationContext(AppModule);
+await app.init();
+
+const handlers = createLambdaStepHandlers(app);
+
+// Export individual handlers for each event
+export const orderCreated = handlers.get('order.created');
+export const orderProcessing = handlers.get('order.processing');
+export const orderShipped = handlers.get('order.shipped');
+```
+
+## Step Execution Result
+
+When using `LambdaStepHandler` or `createLambdaStepHandlers`, the handler returns:
+
+```typescript
+interface IStepExecutionResult {
+  entity: any;        // The updated entity after executing the step
+  status: string;     // The current status after the step
+  isFinal: boolean;   // Whether the entity reached a final state
+  handlerResult: any; // The payload returned by the handler
+  event: string;      // The event that was executed
+}
+```
+
+This result can be used by Step Functions to make decisions and pass data between steps.
+
+## Features
+
+### Automatic Timeout Handling (LambdaEventHandler)
 
 The Lambda adapter automatically manages Lambda timeouts:
 
@@ -51,7 +136,7 @@ The Lambda adapter automatically manages Lambda timeouts:
 const safetyWindowMs = context.getRemainingTimeInMillis() - 5000;
 ```
 
-#### Batch Item Failures
+### Batch Item Failures (LambdaEventHandler)
 
 Supports partial batch failures for efficient retry:
 
@@ -65,9 +150,9 @@ return {
 };
 ```
 
-### Configuration
+## Configuration
 
-#### SQS Event Source Mapping
+### SQS Event Source Mapping (for LambdaEventHandler)
 
 Configure your Lambda function with SQS:
 
@@ -86,7 +171,7 @@ functions:
 
 **Important**: Set `functionResponseType: ReportBatchItemFailures` to enable partial batch failures.
 
-#### Lambda Timeout
+### Lambda Timeout
 
 Set appropriate timeouts based on your workflow complexity:
 
@@ -98,34 +183,20 @@ functions:
 
 The adapter will stop processing 5 seconds before this timeout to ensure graceful shutdown.
 
-### Example Lambda Handler
+## When to Use Each Approach
 
-```typescript
-import { NestFactory } from '@nestjs/core';
-import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
-import { type SQSHandler } from 'aws-lambda';
-import { WorkflowModule } from 'nestjs-serverless-workflow/core';
-import { OrderWorkflow } from './order.workflow';
-import { OrderEntityService } from './order-entity.service';
-import { MySqsEmitter } from './sqs.emitter';
+| Approach | Use Case |
+|----------|----------|
+| `LambdaEventHandler` | Simple workflows, SQS-driven, library manages state machine |
+| `LambdaStepHandler` | Complex workflows, AWS Step Functions manages orchestration |
+| `createLambdaStepHandlers` | Fine-grained deployment, separate Lambda per event |
 
-// Create NestJS application context
-const app = await NestFactory.createApplicationContext(
-  WorkflowModule.register({
-    entities: [
-      { provide: 'entity.order', useClass: OrderEntityService },
-    ],
-    workflows: [OrderWorkflow],
-    brokers: [
-      { provide: 'broker.order', useClass: MySqsEmitter },
-    ],
-  })
-);
-await app.init();
+### Benefits of Step Functions Integration
 
-// Export handler
-export const handler: SQSHandler = LambdaEventHandler(app);
-```
+- **Durable execution**: AWS manages state persistence and retries
+- **Visual workflow**: AWS Console provides workflow visualization
+- **Built-in patterns**: Parallel execution, error handling, wait states
+- **No duplicated logic**: State machine logic lives in Step Functions, not in code
 
 ## Creating Custom Adapters
 
@@ -146,6 +217,12 @@ export class WorkflowController {
   async handleEvent(@Body() event: IWorkflowEvent) {
     await this.orchestrator.transit(event);
     return { status: 'processed' };
+  }
+
+  @Post('step')
+  async handleStep(@Body() event: IWorkflowEvent) {
+    const result = await this.orchestrator.executeStep(event);
+    return result;
   }
 }
 ```
@@ -181,7 +258,7 @@ export const handler: EventBridgeHandler<string, any, void> = async (event) => {
 
 ```typescript
 // Good: Only imports what's needed
-import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+import { LambdaStepHandler } from 'nestjs-serverless-workflow/adapter';
 
 // Bad: Imports everything
 import * as Workflow from 'nestjs-serverless-workflow';
@@ -208,6 +285,8 @@ The adapter logs important events:
 ```typescript
 console.log('Processing record', i + 1);
 console.log('Completed processing. Failed items:', batchItemFailures.length);
+console.log(`Executing step for event: ${event.topic}, urn: ${event.urn}`);
+console.log(`Step completed. Status: ${result.status}, isFinal: ${result.isFinal}`);
 ```
 
 ### CloudWatch Metrics
@@ -218,15 +297,17 @@ Monitor these metrics:
 - SQS Messages Received
 - SQS Messages Deleted
 - DLQ Message Count
+- Step Functions Execution Success/Failure
 
 ## Best Practices
 
-1. **Set appropriate timeouts**: Match Lambda timeout to workflow complexity
-2. **Use batch processing**: Process multiple events per invocation
-3. **Enable batch item failures**: Don't reprocess successful messages
-4. **Configure DLQs**: Capture persistently failing messages
-5. **Monitor metrics**: Track processing times and error rates
-6. **Use structured logging**: Include correlation IDs for tracing
+1. **Choose the right adapter**: Use Step Functions for durable workflows
+2. **Set appropriate timeouts**: Match Lambda timeout to workflow complexity
+3. **Use batch processing**: Process multiple events per invocation (for SQS)
+4. **Enable batch item failures**: Don't reprocess successful messages
+5. **Configure DLQs**: Capture persistently failing messages
+6. **Monitor metrics**: Track processing times and error rates
+7. **Use structured logging**: Include correlation IDs for tracing
 
 ## Related Documentation
 

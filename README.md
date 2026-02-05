@@ -225,12 +225,15 @@ async onSubmit(@Entity() entity: Order, @Payload() data: any) {
 
 ## AWS Lambda Integration
 
-The library includes a Lambda adapter that handles:
+The library includes Lambda adapters that support:
 
+- **Full Orchestration**: Library manages state machine via SQS
+- **Step Functions Integration**: AWS manages state machine externally
 - Automatic timeout management
 - Batch item failures
 - Graceful shutdown before timeout
-- SQS event source integration
+
+### Option 1: SQS-Driven (Full Orchestration)
 
 ```typescript
 import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
@@ -239,6 +242,20 @@ import { type SQSHandler } from 'aws-lambda';
 const app = await NestFactory.createApplicationContext(AppModule);
 export const handler: SQSHandler = LambdaEventHandler(app);
 ```
+
+### Option 2: Step Functions Integration (Recommended for Durable Workflows)
+
+```typescript
+import { LambdaStepHandler } from 'nestjs-serverless-workflow/adapter';
+
+const app = await NestFactory.createApplicationContext(AppModule);
+
+// Single handler that executes workflow steps
+// AWS Step Functions manages the state machine orchestration
+export const handler = LambdaStepHandler(app);
+```
+
+The `LambdaStepHandler` executes single workflow steps, allowing AWS Step Functions to manage state transitions. This avoids duplicating state machine logic and leverages AWS's durable execution guarantees.
 
 ## Requirements
 
@@ -275,5 +292,6 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 ## Related Projects
 
 - [NestJS](https://nestjs.com/) - A progressive Node.js framework
-- [AWS Lambda](https://aws.amazon.com/lambda/) - Serverless compute service
+- [AWS Lambda](https://aws.lambda.amazon.com/) - Serverless compute service
+- [AWS Step Functions](https://aws.amazon.com/step-functions/) - Serverless workflow orchestration
 - [AWS SQS](https://aws.amazon.com/sqs/) - Message queuing service

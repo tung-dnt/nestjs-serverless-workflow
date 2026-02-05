@@ -18,6 +18,23 @@ import { DiscoveryService, ModuleRef } from '@nestjs/core';
 import { StateRouterHelperFactory } from './router.factory';
 
 /**
+ * Result of executing a single workflow step.
+ * Used by external state machines (like AWS Step Functions) to manage transitions.
+ */
+export interface IStepExecutionResult<T = any> {
+  /** The updated entity after executing the step */
+  entity: T;
+  /** The current status of the entity after the step */
+  status: string | number;
+  /** Whether the entity has reached a final state */
+  isFinal: boolean;
+  /** The payload returned by the handler (can be used by next step) */
+  handlerResult: any;
+  /** The event that was executed */
+  event: string;
+}
+
+/**
  * TODO:
  * 1. SAGA: SAGA transaction will update history storage each transition, history service is implemented from `ISagaHistoryStore`
  *   +) If reverese order, execute compensations in reverse order
@@ -102,6 +119,115 @@ export class OrchestratorService implements OnModuleInit {
     this.logger.log(`StateRouter initialized with ${this.routes.size} routes: `, Array.from(this.routes.keys()));
   }
 
+  /**
+   * Returns the list of registered event names.
+   * Useful for creating Lambda handler mappings.
+   */
+  getRegisteredEvents(): string[] {
+    return Array.from(this.routes.keys());
+  }
+
+  /**
+   * Executes a single workflow step without automatic transitions.
+   * This method is designed for use with external state machines (like AWS Step Functions)
+   * that manage the workflow orchestration themselves.
+   *
+   * @param params - The workflow event containing event, urn, payload, and attempt
+   * @returns Result containing the updated entity, status, and whether it's a final state
+   */
+  async executeStep(params: IWorkflowEvent): Promise<IStepExecutionResult> {
+    const { urn, payload, attempt, topic: event } = params;
+
+    const route = this.routes.get(event);
+    if (!route) throw new BadRequestException(`No workflow found for event: ${event}`);
+    const { definition, instance, defaultHandler, entityService } = route;
+
+    if (!definition) {
+      const className = instance.name;
+      throw new BadRequestException(
+        `Workflow definition metadata is missing for controller class "${className}". Ensure @Workflow(...) is applied to the class and that decorators are not reordered.`,
+      );
+    }
+
+    const logger = new Logger(`Router::${definition.name}`);
+    const routerHelper = this.routerHelperFactory.create(event, entityService, definition, logger);
+    logger.log(`executeStep: Method ${route.handlerName} is being called with arguments:`, params);
+
+    // Load entity
+    let entity = await routerHelper.loadAndValidateEntity(urn);
+    const entityStatus = entityService.status(entity);
+
+    // Find valid transition for this event
+    const transition = routerHelper.findValidTransition(entity, payload);
+
+    if (!transition) {
+      if (defaultHandler) {
+        logger.log(`Falling back to the default transition`, urn);
+        await defaultHandler(entity, event, payload);
+      }
+      throw new BadRequestException(
+        `No matched transition for event: ${event}, status: ${entityStatus}. Please verify your workflow definition!`,
+      );
+    }
+
+    // Execute the single step
+    try {
+      logger.log('======= SINGLE WORKFLOW STEP STARTED =======');
+      const currentEntityStatus = entityService.status(entity);
+      logger.log(`Executing transition from ${currentEntityStatus} to ${transition.to} (${urn})`);
+
+      // Execute handler
+      const { handlerName, handler, retryConfig } = route;
+      const args = routerHelper.buildParamDecorators(entity, payload, instance, handlerName);
+
+      let handlerResult: any;
+      try {
+        handlerResult = await handler.apply(instance, args);
+      } catch (e) {
+        if (!retryConfig) throw e;
+
+        const { maxAttempts } = retryConfig;
+        if (e instanceof BadRequestException || e instanceof UnretriableException || attempt >= maxAttempts) {
+          logger.error('Unretriable exception found!');
+          throw e;
+        }
+
+        await this.moduleRef.get<IRetryHandler>(retryConfig.handler).execute();
+        throw e;
+      }
+
+      // Update entity status
+      entity = await entityService.update(entity, transition.to);
+      const updatedStatus = entityService.status(entity);
+      logger.log(`Element transitioned from ${currentEntityStatus} to ${transition.to} (${urn})`);
+
+      // Check if final state
+      const definedFinalStates = definition.states.finals as Array<string | number>;
+      const isFinal = definedFinalStates.includes(updatedStatus);
+
+      if (isFinal) {
+        logger.log(`Element ${urn} reached final state: ${updatedStatus}`);
+      }
+
+      return {
+        entity,
+        status: updatedStatus,
+        isFinal,
+        handlerResult,
+        event,
+      };
+    } catch (e) {
+      await entityService.update(entity, definition.states.failed);
+      logger.error(`Step execution failed. Setting status to failed (${(e as Error).message})`, urn);
+      throw e;
+    }
+  }
+
+  /**
+   * Executes the full workflow with automatic transitions (original behavior).
+   * Use this when you want the library to manage the entire state machine internally.
+   * For external state machines (like AWS Step Functions), use `executeStep` instead.
+   */
   async transit(params: IWorkflowEvent) {
     const { urn, payload, attempt, topic: event } = params;
 
@@ -157,9 +283,6 @@ export class OrchestratorService implements OnModuleInit {
 
         const currentEntityStatus = entityService.status(entity);
         logger.log(`Executing transition from ${currentEntityStatus} to ${transition.to} (${urn})`);
-
-        // Store entity state before transition (for SAGA)
-        const beforeState = { ...entity };
 
         // Get the correct handler for the current transition event
         const currentEvent = Array.isArray(transition.event) ? transition.event[0] : transition.event;
