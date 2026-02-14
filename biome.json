@@ -7,7 +7,19 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["packages/**/*", "scripts/**/*", "test/**/*", "tests/**/*", "!**/node_modules", "!**/dist", "!**/build", "!**/coverage", "!**/.docusaurus", "!**/.cache", "!**/*.d.ts"]
+    "includes": [
+      "packages/**/*",
+      "scripts/**/*",
+      "test/**/*",
+      "tests/**/*",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/build",
+      "!**/coverage",
+      "!**/.docusaurus",
+      "!**/.cache",
+      "!**/*.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

@@ -29,9 +29,7 @@ export const ORDER_BROKER_TOKEN = 'broker.order';
       event: OrderEvent.CREATED,
       from: [OrderState.PENDING],
       to: OrderState.PROCESSING,
-      conditions: [
-        (entity: Order, payload?: { approved: boolean }) => payload?.approved === true,
-      ],
+      conditions: [(entity: Order, payload?: { approved: boolean }) => payload?.approved === true],
     },
     {
       event: OrderEvent.PROCESSING,

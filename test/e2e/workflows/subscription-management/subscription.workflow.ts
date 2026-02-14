@@ -33,8 +33,7 @@ export const SUBSCRIPTION_BROKER_TOKEN = 'broker.subscription';
       from: [SubscriptionState.TRIAL],
       to: SubscriptionState.ACTIVE,
       conditions: [
-        (entity: Subscription, payload?: { paymentMethodId: string }) =>
-          payload?.paymentMethodId !== undefined,
+        (entity: Subscription, payload?: { paymentMethodId: string }) => payload?.paymentMethodId !== undefined,
       ],
     },
     {
@@ -42,8 +41,7 @@ export const SUBSCRIPTION_BROKER_TOKEN = 'broker.subscription';
       from: [SubscriptionState.TRIAL],
       to: SubscriptionState.EXPIRED,
       conditions: [
-        (_entity: Subscription, payload?: { paymentMethodId: string }) =>
-          payload?.paymentMethodId === undefined,
+        (_entity: Subscription, payload?: { paymentMethodId: string }) => payload?.paymentMethodId === undefined,
       ],
     },
     {

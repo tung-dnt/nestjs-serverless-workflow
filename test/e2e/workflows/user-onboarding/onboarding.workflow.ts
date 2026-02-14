@@ -43,10 +43,7 @@ export const ONBOARDING_BROKER_TOKEN = 'broker.user';
           if (entity.userType === 'business') {
             return payload?.profileData?.companyName !== undefined;
           }
-          return (
-            payload?.profileData?.firstName !== undefined &&
-            payload?.profileData?.lastName !== undefined
-          );
+          return payload?.profileData?.firstName !== undefined && payload?.profileData?.lastName !== undefined;
         },
       ],
     },
