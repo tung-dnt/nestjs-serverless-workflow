@@ -1,4 +1,3 @@
-import type { IBrokerPublisher } from '@/event-bus';
 import type {
   IBackoffRetryConfig,
   ISagaConfig,
@@ -7,6 +6,7 @@ import type {
   ITransitionEvent,
   IWorkflowEntity,
 } from '@/core';
+import type { IBrokerPublisher } from '@/event-bus';
 
 /**
  * Defines the structure of a workflow definition, which includes the following properties:

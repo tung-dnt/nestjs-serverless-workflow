@@ -1,7 +1,7 @@
-import { type IWorkflowEvent } from '@/event-bus';
+import type { INestApplicationContext } from '@nestjs/common';
+import type { SQSHandler } from 'aws-lambda';
 import { OrchestratorService } from '@/core';
-import { type INestApplicationContext } from '@nestjs/common';
-import { type SQSHandler } from 'aws-lambda';
+import type { IWorkflowEvent } from '@/event-bus';
 
 // NOTDE:
 // - ReportBatchItemFailures must be enabled on SQS event source mapping

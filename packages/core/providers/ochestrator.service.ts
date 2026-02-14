@@ -1,3 +1,5 @@
+import { BadRequestException, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import type { DiscoveryService, ModuleRef } from '@nestjs/core';
 import type {
   IBackoffRetryConfig,
   IRetryHandler,
@@ -13,9 +15,7 @@ import type {
 import { getRetryKey, WORKFLOW_DEFAULT_EVENT, WORKFLOW_DEFINITION_KEY, WORKFLOW_HANDLER_KEY } from '@/core';
 import type { IBrokerPublisher, IWorkflowEvent } from '@/event-bus';
 import { UnretriableException } from '@/exception/unretriable.exception';
-import { BadRequestException, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { DiscoveryService, ModuleRef } from '@nestjs/core';
-import { StateRouterHelperFactory } from './router.factory';
+import type { StateRouterHelperFactory } from './router.factory';
 
 /**
  * TODO:
@@ -29,11 +29,9 @@ import { StateRouterHelperFactory } from './router.factory';
  *   +) If no compensation and transaction is failed, start from last failed state
  *   +) If no compensation and transaction is completed, throw error
  * 3. Checkpointing for long-running tasks (Serverless)
- *   +) Handle serverless function timeout, store current entity state to checkpoint broker via `BrokerPublisher`
  *   +) BrokerPublisher.publish will implement delay queue via time calculated from RetryService.execute()
  * 4. Retry Service: Retry in state handler level via `IRetryHandler`
- *   +) If CompensationHandler
- * 5. Timeout handling: listen for timeout event emitted by Runtime Adapter (DEV DONE - TESTING)
+ *   +) Bind configs to lambda retry config
  */
 @Injectable()
 export class OrchestratorService implements OnModuleInit {
@@ -138,7 +136,7 @@ export class OrchestratorService implements OnModuleInit {
     }
 
     try {
-      while (!!transition) {
+      while (transition) {
         logger.log('======= WORKFLOW STEP STARTED =======');
         if (routerHelper.isInIdleStatus(entity)) {
           if (!transition.conditions) {
@@ -170,20 +168,7 @@ export class OrchestratorService implements OnModuleInit {
         const { handlerName, handler, retryConfig } = currentRoute;
         const args = routerHelper.buildParamDecorators(entity, stepPayload, instance, handlerName);
 
-        try {
-          stepPayload = await handler.apply(instance, args);
-        } catch (e) {
-          if (!retryConfig) throw e;
-
-          const { maxAttempts } = retryConfig;
-          if (e instanceof BadRequestException || e instanceof UnretriableException || attempt >= maxAttempts) {
-            logger.error('Unretriable exception found!');
-            return;
-          }
-
-          // TODO: add more payload: original method, payload, entity, retryConfigs
-          await this.moduleRef.get<IRetryHandler>(retryConfig.handler).execute();
-        }
+        stepPayload = await handler.apply(instance, args);
 
         // Update entity status
         entity = await entityService.update(entity, transition.to);

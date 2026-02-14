@@ -1,4 +1,4 @@
-import { RetryStrategy, type IBackoffRetryConfig } from '../types';
+import { type IBackoffRetryConfig, RetryStrategy } from '../types';
 
 /**
  * Calculate delay for retry attempt using exponential backoff with optional jitter
@@ -21,16 +21,16 @@ export class RetryBackoff {
 
     switch (strategy) {
       case RetryStrategy.FIXED:
-        return this.fixedDelay(initialDelay);
+        return RetryBackoff.fixedDelay(initialDelay);
 
       case RetryStrategy.EXPONENTIAL:
-        return this.exponentialBackoff(attempt, initialDelay, backoffMultiplier, maxDelay);
+        return RetryBackoff.exponentialBackoff(attempt, initialDelay, backoffMultiplier, maxDelay);
 
       case RetryStrategy.EXPONENTIAL_JITTER:
-        return this.exponentialBackoffWithJitter(attempt, initialDelay, backoffMultiplier, maxDelay, jitter);
+        return RetryBackoff.exponentialBackoffWithJitter(attempt, initialDelay, backoffMultiplier, maxDelay, jitter);
 
       default:
-        return this.exponentialBackoffWithJitter(attempt, initialDelay, backoffMultiplier, maxDelay, jitter);
+        return RetryBackoff.exponentialBackoffWithJitter(attempt, initialDelay, backoffMultiplier, maxDelay, jitter);
     }
   }
 
@@ -51,7 +51,7 @@ export class RetryBackoff {
     backoffMultiplier: number,
     maxDelay: number,
   ): number {
-    const delay = initialDelay * Math.pow(backoffMultiplier, attempt);
+    const delay = initialDelay * backoffMultiplier ** attempt;
     return Math.min(delay, maxDelay);
   }
 
@@ -68,7 +68,7 @@ export class RetryBackoff {
     maxDelay: number,
     jitter: boolean | number,
   ): number {
-    const baseDelay = this.exponentialBackoff(attempt, initialDelay, backoffMultiplier, maxDelay);
+    const baseDelay = RetryBackoff.exponentialBackoff(attempt, initialDelay, backoffMultiplier, maxDelay);
 
     if (jitter === true) {
       // Full jitter: random between 0 and baseDelay

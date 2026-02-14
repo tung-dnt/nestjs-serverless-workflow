@@ -17,10 +17,7 @@ export interface RunModulesOptions {
   customResultHandler?: (result: Awaited<ReturnType<typeof $>>, module: ModuleConfig) => boolean;
 }
 
-export async function runModules(
-  modules: ModuleConfig[],
-  options: RunModulesOptions
-): Promise<boolean> {
+export async function runModules(modules: ModuleConfig[], options: RunModulesOptions): Promise<boolean> {
   const {
     actionName,
     actionVerb,
@@ -77,4 +74,3 @@ export async function runModules(
   console.log(`✅ ${allPassedMessage}`);
   return true;
 }
-
