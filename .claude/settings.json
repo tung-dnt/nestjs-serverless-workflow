@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "tools": ["Edit", "Write"],
+        "command": "gofmt -s -w ${file} && goimports -w -local github.com/tung-dnt/nestjs-serverless-workflow ${file}",
+        "background": true,
+        "description": "Auto-format Go files after edits",
+        "filePatterns": ["**/*.go"]
+      },
+      {
+        "tools": ["Edit", "Write"],
+        "command": "go test -v -race ${dir}/...",
+        "background": true,
+        "description": "Run tests after Go code changes",
+        "filePatterns": ["**/*.go", "!**/*_test.go"]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "tools": ["Edit", "Write"],
+        "command": "echo 'Protecting lock file' && exit 1",
+        "description": "Block go.mod/go.sum edits",
+        "filePatterns": ["go.mod", "go.sum"]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(go test:*)",
+      "Bash(go build:*)",
+      "Bash(go fmt:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(gofmt:*)",
+      "Bash(goimports:*)",
+      "Bash(golangci-lint:*)",
+      "Bash(make:*)",
+      "Edit",
+      "Write"
+    ]
+  }
+}

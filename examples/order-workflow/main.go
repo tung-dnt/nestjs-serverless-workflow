@@ -10,9 +10,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	lambdaadapter "github.com/tung-dnt/nestjs-serverless-workflow/workflow/adapter/lambda"
-	"github.com/tung-dnt/nestjs-serverless-workflow/workflow/core"
-	sqsemitter "github.com/tung-dnt/nestjs-serverless-workflow/workflow/eventbus/sqs"
+	lambdaadapter "github.com/tung-dnt/nestjs-serverless-workflow/packages/adapter/lambda"
+	"github.com/tung-dnt/nestjs-serverless-workflow/packages/core"
+	sqsemitter "github.com/tung-dnt/nestjs-serverless-workflow/packages/eventbus/sqs"
 )
 
 // OrderState represents the workflow states
@@ -122,18 +122,6 @@ type OrderWorkflow struct {
 	logger        *slog.Logger
 }
 
-func NewOrderWorkflow(
-	entityService *OrderEntityService,
-	broker core.BrokerPublisher,
-	logger *slog.Logger,
-) *OrderWorkflow {
-	return &OrderWorkflow{
-		entityService: entityService,
-		broker:        broker,
-		logger:        logger,
-	}
-}
-
 // Handler functions
 func (w *OrderWorkflow) HandleCreated(
 	ctx context.Context,
@@ -194,9 +182,9 @@ func (w *OrderWorkflow) HandleProcessing(
 	// - Create shipment
 
 	return map[string]any{
-		"processed":     true,
-		"readyToShip":   true,
-		"shipmentId":    "SHIP-" + order.ID,
+		"processed":   true,
+		"readyToShip": true,
+		"shipmentId":  "SHIP-" + order.ID,
 	}, nil
 }
 
@@ -312,12 +300,12 @@ func main() {
 		panic("missing WORKFLOW_QUEUE_URL")
 	}
 
-	// Setup dependencies
-	entityService := NewOrderEntityService(dynamoClient, tableName, logger)
-	sqsBroker := sqsemitter.NewEmitter(sqsClient, queueURL, logger)
-
 	// Create workflow
-	orderWorkflow := NewOrderWorkflow(entityService, sqsBroker, logger)
+	orderWorkflow := &OrderWorkflow{
+		entityService: NewOrderEntityService(dynamoClient, tableName, logger),
+		broker:        sqsemitter.NewEmitter(sqsClient, queueURL, logger),
+		logger:        logger,
+	}
 
 	// Setup orchestrator
 	orchestrator := core.NewOrchestrator(logger)
