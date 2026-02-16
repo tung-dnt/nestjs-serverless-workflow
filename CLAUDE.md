@@ -1,24 +1,18 @@
 # Project Configuration
 
 ## Second brains
-
-
-## Always run tests and quality check after edits
-
-After making any code changes, run `go test`, `gofmt -s -w .`, `goimports -w .`
+All project knowledge – architecture decisions, error patterns, dependency choices, discussions, and context – lives in the **NotebookLM notebook - nlm-cli-skill**. This file does NOT store knowledge. The notebook is the single source of truth.
 
 ## Implementations & Best Practices
-
-- Use `/golang-pro` commands skill to implement/write code in best practices, build project
+- Apply TDD - Test Driven Development methods
 - Use `context7` for latest documentation reference everytime you make changes
-- Use 
 
 ## Project Structure
 
 ```
 .
-├── workflow/           # Core workflow package
-├── examples/          # Example implementations
+├── packages/         # Core workflow package
+├── examples/         # Example implementations
 ├── go.mod            # Go module definition
 ├── go.sum            # Go module checksums
 ├── Makefile          # Build automation
