@@ -1,24 +1,32 @@
-# Dependencies
-node_modules/
-bun.lock
-
-# Build output
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
 dist/
-*.tsbuildinfo
 
-# Environment
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# Environment variables
 .env
 .env.*
 !.env.example
 
-# Logs
-*.log
-logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
@@ -26,9 +34,9 @@ yarn-error.log*
 *~
 .DS_Store
 
-# Testing
-coverage/
-.nyc_output/
+# Logs
+*.log
+logs/
 
 # Serverless
 .serverless/
@@ -38,8 +46,11 @@ coverage/
 *.temp
 .cache/
 
-# OS
+# OS specific
 Thumbs.db
-.npmrc
 
+# Build artifacts
+*.tsbuildinfo
+
+# Documentation build
 docs/docs/README.md

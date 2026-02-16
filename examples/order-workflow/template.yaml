@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Order Workflow Lambda with Go Workflow Engine
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 128
+    Runtime: provided.al2023
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        LOG_LEVEL: info
+
+Resources:
+  # DynamoDB table for orders
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-orders'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+  # SQS queue for workflow events
+  WorkflowQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-workflow-queue'
+      VisibilityTimeout: 180  # 3x Lambda timeout
+      MessageRetentionPeriod: 1209600  # 14 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt WorkflowDLQ.Arn
+        maxReceiveCount: 3
+
+  # Dead letter queue
+  WorkflowDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-workflow-dlq'
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  # Lambda function
+  OrderWorkflowFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-order-workflow'
+      CodeUri: .
+      Handler: bootstrap
+      Environment:
+        Variables:
+          ORDERS_TABLE_NAME: !Ref OrdersTable
+          WORKFLOW_QUEUE_URL: !Ref WorkflowQueue
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt WorkflowQueue.QueueName
+        - SQSPollerPolicy:
+            QueueName: !GetAtt WorkflowQueue.QueueName
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt WorkflowQueue.Arn
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+  # CloudWatch Log Group
+  WorkflowLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${OrderWorkflowFunction}'
+      RetentionInDays: 7
+
+  # CloudWatch Alarms
+  WorkflowErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-workflow-errors'
+      AlarmDescription: Alert when workflow function has errors
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref OrderWorkflowFunction
+
+  DLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-dlq-messages'
+      AlarmDescription: Alert when messages appear in DLQ
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt WorkflowDLQ.QueueName
+
+Outputs:
+  OrderWorkflowFunction:
+    Description: Order Workflow Lambda Function ARN
+    Value: !GetAtt OrderWorkflowFunction.Arn
+
+  WorkflowQueueURL:
+    Description: Workflow SQS Queue URL
+    Value: !Ref WorkflowQueue
+
+  WorkflowQueueArn:
+    Description: Workflow SQS Queue ARN
+    Value: !GetAtt WorkflowQueue.Arn
+
+  OrdersTableName:
+    Description: DynamoDB Orders Table Name
+    Value: !Ref OrdersTable
+
+  DLQUrl:
+    Description: Dead Letter Queue URL
+    Value: !Ref WorkflowDLQ
