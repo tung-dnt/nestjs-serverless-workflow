@@ -1,3 +1,4 @@
+// Package eventbus provides event publishing and message formatting for workflow events.
 package eventbus
 
 import (

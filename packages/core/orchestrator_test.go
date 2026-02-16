@@ -1,3 +1,4 @@
+//nolint:revive // Test file with mock implementations that intentionally have unused parameters
 package core
 
 import (
@@ -135,6 +136,7 @@ func setupTestWorkflow(entityService *MockEntityService, broker *MockBrokerPubli
 					return approved
 				},
 			},
+			Handlers: []HandlerFunc[*Order]{handleOrderCreated},
 		}).
 		AddTransition(Transition[*Order, OrderEvent, OrderState]{
 			Event: OrderEventProcessing,
@@ -148,10 +150,8 @@ func setupTestWorkflow(entityService *MockEntityService, broker *MockBrokerPubli
 					return ready
 				},
 			},
+			Handlers: []HandlerFunc[*Order]{handleOrderShipped},
 		}).
-		OnEvent(OrderEventCreated, handleOrderCreated).
-		OnEvent(OrderEventProcessing, handleOrderProcessing).
-		OnEvent(OrderEventShipped, handleOrderShipped).
 		WithEntityService(entityService).
 		WithBrokerPublisher(broker).
 		Build()
@@ -172,8 +172,12 @@ func TestWorkflowBuilder(t *testing.T) {
 			t.Errorf("expected 2 transitions, got %d", len(def.Transitions))
 		}
 
-		if len(def.Handlers) != 3 {
-			t.Errorf("expected 3 handlers, got %d", len(def.Handlers))
+		// Verify handlers are inline with transitions
+		if len(def.Transitions[0].Handlers) != 1 {
+			t.Errorf("expected 1 handler in first transition, got %d", len(def.Transitions[0].Handlers))
+		}
+		if len(def.Transitions[1].Handlers) != 1 {
+			t.Errorf("expected 1 handler in second transition, got %d", len(def.Transitions[1].Handlers))
 		}
 	})
 
@@ -186,11 +190,11 @@ func TestWorkflowBuilder(t *testing.T) {
 
 		NewWorkflowBuilder[*Order, OrderEvent, OrderState]("Invalid").
 			AddTransition(Transition[*Order, OrderEvent, OrderState]{
-				Event: OrderEventCreated,
-				From:  []OrderState{OrderStatePending},
-				To:    OrderStateProcessing,
+				Event:    OrderEventCreated,
+				From:     []OrderState{OrderStatePending},
+				To:       OrderStateProcessing,
+				Handlers: []HandlerFunc[*Order]{handleOrderCreated},
 			}).
-			OnEvent(OrderEventCreated, handleOrderCreated).
 			Build()
 	})
 
@@ -342,18 +346,18 @@ func TestOrchestrator_AutomaticTransitions(t *testing.T) {
 				Failed: OrderStateFailed,
 			}).
 			AddTransition(Transition[*Order, OrderEvent, OrderState]{
-				Event: OrderEventCreated,
-				From:  []OrderState{OrderStatePending},
-				To:    OrderStateProcessing,
+				Event:    OrderEventCreated,
+				From:     []OrderState{OrderStatePending},
+				To:       OrderStateProcessing,
+				Handlers: []HandlerFunc[*Order]{handleOrderCreated},
 			}).
 			AddTransition(Transition[*Order, OrderEvent, OrderState]{
-				Event: OrderEventProcessing,
-				From:  []OrderState{OrderStateProcessing},
-				To:    OrderStateShipped,
+				Event:    OrderEventProcessing,
+				From:     []OrderState{OrderStateProcessing},
+				To:       OrderStateShipped,
+				Handlers: []HandlerFunc[*Order]{handleOrderProcessing},
 				// No event check - automatic transition
 			}).
-			OnEvent(OrderEventCreated, handleOrderCreated).
-			OnEvent(OrderEventProcessing, handleOrderProcessing).
 			WithEntityService(mockEntity).
 			WithBrokerPublisher(mockBroker).
 			Build()
@@ -405,11 +409,11 @@ func TestOrchestrator_ErrorHandling(t *testing.T) {
 				Failed: OrderStateFailed,
 			}).
 			AddTransition(Transition[*Order, OrderEvent, OrderState]{
-				Event: OrderEventCreated,
-				From:  []OrderState{OrderStatePending},
-				To:    OrderStateProcessing,
+				Event:    OrderEventCreated,
+				From:     []OrderState{OrderStatePending},
+				To:       OrderStateProcessing,
+				Handlers: []HandlerFunc[*Order]{handleWithError},
 			}).
-			OnEvent(OrderEventCreated, handleWithError).
 			WithEntityService(mockEntity).
 			WithBrokerPublisher(mockBroker).
 			Build()
@@ -511,11 +515,11 @@ func TestRegistry(t *testing.T) {
 		workflow1 := setupTestWorkflow(mockEntity, nil)
 		workflow2 := NewWorkflowBuilder[*Order, OrderEvent, OrderState]("Workflow2").
 			AddTransition(Transition[*Order, OrderEvent, OrderState]{
-				Event: OrderEventCreated,
-				From:  []OrderState{OrderStatePending},
-				To:    OrderStateProcessing,
+				Event:    OrderEventCreated,
+				From:     []OrderState{OrderStatePending},
+				To:       OrderStateProcessing,
+				Handlers: []HandlerFunc[*Order]{handleOrderCreated},
 			}).
-			OnEvent(OrderEventCreated, handleOrderCreated).
 			WithEntityService(mockEntity).
 			Build()
 

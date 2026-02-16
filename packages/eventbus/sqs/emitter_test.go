@@ -1,3 +1,4 @@
+//nolint:revive // Test file with mock implementations that intentionally have unused parameters
 package sqs
 
 import (

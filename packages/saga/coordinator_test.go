@@ -1,3 +1,4 @@
+//nolint:revive // Test file with mock implementations that intentionally have unused parameters
 package saga
 
 import (
@@ -158,7 +159,7 @@ func TestCoordinator_CompensationStrategies(t *testing.T) {
 					},
 				})
 
-			coordinator.Execute(context.Background(), map[string]any{})
+			_ = coordinator.Execute(context.Background(), map[string]any{})
 
 			// For parallel, just check both were called
 			if tt.strategy == Parallel {

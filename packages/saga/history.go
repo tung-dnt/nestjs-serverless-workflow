@@ -22,6 +22,8 @@ type HistoryStore interface {
 }
 
 // SagaExecution represents a saga execution instance
+//
+//nolint:revive // Keeping SagaExecution name for external API clarity
 type SagaExecution struct {
 	// ID uniquely identifies this saga execution
 	ID string `json:"id" dynamodbav:"id"`
@@ -46,6 +48,8 @@ type SagaExecution struct {
 }
 
 // SagaStatus represents the status of a saga execution
+//
+//nolint:revive // Keeping SagaStatus name for external API clarity
 type SagaStatus string
 
 const (
@@ -133,14 +137,16 @@ func NewInMemoryHistoryStore() *InMemoryHistoryStore {
 	}
 }
 
-func (s *InMemoryHistoryStore) Save(ctx context.Context, execution *SagaExecution) error {
+// Save persists a saga execution.
+func (s *InMemoryHistoryStore) Save(_ context.Context, execution *SagaExecution) error {
 	// Clone to avoid mutations
 	clone := *execution
 	s.executions[execution.ID] = &clone
 	return nil
 }
 
-func (s *InMemoryHistoryStore) Get(ctx context.Context, sagaID string) (*SagaExecution, error) {
+// Get returns a saga execution by ID.
+func (s *InMemoryHistoryStore) Get(_ context.Context, sagaID string) (*SagaExecution, error) {
 	execution, ok := s.executions[sagaID]
 	if !ok {
 		return nil, ErrSagaNotFound
@@ -151,7 +157,8 @@ func (s *InMemoryHistoryStore) Get(ctx context.Context, sagaID string) (*SagaExe
 	return &clone, nil
 }
 
-func (s *InMemoryHistoryStore) List(ctx context.Context, filter HistoryFilter) ([]SagaExecution, error) {
+// List returns saga executions matching the filter.
+func (s *InMemoryHistoryStore) List(_ context.Context, filter HistoryFilter) ([]SagaExecution, error) {
 	var results []SagaExecution
 
 	for _, execution := range s.executions {
@@ -181,7 +188,8 @@ func (s *InMemoryHistoryStore) List(ctx context.Context, filter HistoryFilter) (
 	return results, nil
 }
 
-func (s *InMemoryHistoryStore) Delete(ctx context.Context, sagaID string) error {
+// Delete removes a saga execution by ID.
+func (s *InMemoryHistoryStore) Delete(_ context.Context, sagaID string) error {
 	delete(s.executions, sagaID)
 	return nil
 }

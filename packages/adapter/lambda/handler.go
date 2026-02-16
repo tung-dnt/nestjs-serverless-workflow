@@ -1,3 +1,5 @@
+// Package lambda provides AWS Lambda adapter for workflow orchestration.
+// It handles SQS event processing and integrates with the core orchestrator.
 package lambda
 
 import (

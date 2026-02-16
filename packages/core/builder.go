@@ -1,3 +1,5 @@
+// Package core provides the workflow orchestration engine with support for
+// state machines, transitions, handlers, and conditions.
 package core
 
 import "fmt"
@@ -12,7 +14,6 @@ func NewWorkflowBuilder[E Entity, Ev Event, S State](name string) *WorkflowBuild
 	return &WorkflowBuilder[E, Ev, S]{
 		def: &WorkflowDefinition[E, Ev, S]{
 			Name:        name,
-			Handlers:    make(map[Ev]HandlerFunc[E]),
 			Transitions: []Transition[E, Ev, S]{},
 		},
 	}
@@ -33,12 +34,6 @@ func (b *WorkflowBuilder[E, Ev, S]) AddTransition(transition Transition[E, Ev, S
 // AddTransitions adds multiple transitions at once
 func (b *WorkflowBuilder[E, Ev, S]) AddTransitions(transitions ...Transition[E, Ev, S]) *WorkflowBuilder[E, Ev, S] {
 	b.def.Transitions = append(b.def.Transitions, transitions...)
-	return b
-}
-
-// OnEvent registers an event handler for the given event
-func (b *WorkflowBuilder[E, Ev, S]) OnEvent(event Ev, handler HandlerFunc[E]) *WorkflowBuilder[E, Ev, S] {
-	b.def.Handlers[event] = handler
 	return b
 }
 
@@ -79,9 +74,9 @@ func (b *WorkflowBuilder[E, Ev, S]) validate() error {
 	}
 
 	// Validate that all transitions have handlers
-	for _, transition := range b.def.Transitions {
-		if _, ok := b.def.Handlers[transition.Event]; !ok {
-			return fmt.Errorf("%w: no handler registered for event %v", ErrInvalidWorkflowDefinition, transition.Event)
+	for i, transition := range b.def.Transitions {
+		if len(transition.Handlers) == 0 {
+			return fmt.Errorf("%w: transition %d (event %v) has no handlers", ErrInvalidWorkflowDefinition, i, transition.Event)
 		}
 	}
 

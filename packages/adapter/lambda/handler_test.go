@@ -1,3 +1,4 @@
+//nolint:revive // Test file with mock implementations that intentionally have unused parameters
 package lambda
 
 import (
@@ -88,12 +89,11 @@ func setupTestOrchestrator(mockEntity *MockEntityService) *core.Orchestrator {
 			Idles:  []OrderState{OrderStatePending},
 			Failed: OrderStateFailed,
 		}).
-		AddTransition(core.Transition[*Order, OrderEvent, OrderState]{
-			Event: OrderEventCreated,
-			From:  []OrderState{OrderStatePending},
-			To:    OrderStateProcessing,
+		On(OrderEventCreated, func(t *core.TransitionBuilder[*Order, OrderEvent, OrderState]) {
+			t.FromAny(OrderStatePending).
+				To(OrderStateProcessing).
+				Handle(handleOrderCreated)
 		}).
-		OnEvent(OrderEventCreated, handleOrderCreated).
 		WithEntityService(mockEntity).
 		Build()
 
@@ -103,6 +103,7 @@ func setupTestOrchestrator(mockEntity *MockEntityService) *core.Orchestrator {
 	return orchestrator
 }
 
+//nolint:unparam // topic parameter designed for flexibility in tests
 func createSQSMessage(topic, urn string, payload map[string]any) events.SQSMessage {
 	event := core.WorkflowEvent{
 		Topic:   topic,
@@ -161,20 +162,16 @@ func TestHandler_HandleSQSEvent(t *testing.T) {
 			wantSuccessfulURNs: []string{"order:1", "order:2", "order:3"},
 		},
 		{
-			name: "entity not found - should fail",
-			setupEntity: func() *MockEntityService {
-				return NewMockEntityService()
-			},
+			name:        "entity not found - should fail",
+			setupEntity: NewMockEntityService,
 			messages: []events.SQSMessage{
 				createSQSMessage("order.created", "order:not-found", map[string]any{}),
 			},
 			wantFailureCount: 1,
 		},
 		{
-			name: "invalid JSON - should fail",
-			setupEntity: func() *MockEntityService {
-				return NewMockEntityService()
-			},
+			name:        "invalid JSON - should fail",
+			setupEntity: NewMockEntityService,
 			messages: []events.SQSMessage{
 				{
 					MessageId: "test-1",
@@ -303,12 +300,11 @@ func TestHandler_UnretriableErrors(t *testing.T) {
 				Idles:  []OrderState{OrderStatePending},
 				Failed: OrderStateFailed,
 			}).
-			AddTransition(core.Transition[*Order, OrderEvent, OrderState]{
-				Event: OrderEventCreated,
-				From:  []OrderState{OrderStatePending},
-				To:    OrderStateProcessing,
+			On(OrderEventCreated, func(t *core.TransitionBuilder[*Order, OrderEvent, OrderState]) {
+				t.FromAny(OrderStatePending).
+					To(OrderStateProcessing).
+					Handle(handleWithUnretriableError)
 			}).
-			OnEvent(OrderEventCreated, handleWithUnretriableError).
 			WithEntityService(mockEntity).
 			Build()
 
@@ -358,12 +354,11 @@ func TestHandler_UnretriableErrors(t *testing.T) {
 				Idles:  []OrderState{OrderStatePending},
 				Failed: OrderStateFailed,
 			}).
-			AddTransition(core.Transition[*Order, OrderEvent, OrderState]{
-				Event: OrderEventCreated,
-				From:  []OrderState{OrderStatePending},
-				To:    OrderStateProcessing,
+			On(OrderEventCreated, func(t *core.TransitionBuilder[*Order, OrderEvent, OrderState]) {
+				t.FromAny(OrderStatePending).
+					To(OrderStateProcessing).
+					Handle(handleWithRetriableError)
 			}).
-			OnEvent(OrderEventCreated, handleWithRetriableError).
 			WithEntityService(mockEntity).
 			Build()
 

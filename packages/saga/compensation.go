@@ -166,15 +166,14 @@ func CompensateWithRetry(
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		if err := compensation(ctx, data); err == nil {
+		err := compensation(ctx, data)
+		if err == nil {
 			return nil
-		} else {
-			lastErr = err
-
-			// Check if error is retryable
-			if errors.Is(err, ErrNonRetryable) {
-				return err
-			}
+		}
+		lastErr = err
+		// Check if error is retryable
+		if errors.Is(lastErr, ErrNonRetryable) {
+			return lastErr
 		}
 	}
 

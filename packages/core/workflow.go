@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"slices"
 )
 
 // State represents a workflow state type
@@ -61,6 +62,9 @@ type Transition[E Entity, Ev Event, S State] struct {
 
 	// Conditions that must be satisfied for transition (AND logic)
 	Conditions []ConditionFunc[E]
+
+	// Handlers executed when this transition occurs (fanout pattern)
+	Handlers []HandlerFunc[E]
 }
 
 // WorkflowDefinition is the complete definition of a workflow
@@ -73,9 +77,6 @@ type WorkflowDefinition[E Entity, Ev Event, S State] struct {
 
 	// Transitions defines all possible state transitions
 	Transitions []Transition[E, Ev, S]
-
-	// Handlers maps events to handler functions
-	Handlers map[Ev]HandlerFunc[E]
 
 	// Entity service for loading and updating entities
 	Entity EntityService[E, S]
@@ -100,8 +101,8 @@ type WorkflowDefinitionInterface interface {
 	// GetTransitionTargetState extracts the target state from a transition object
 	GetTransitionTargetState(transition any) any
 
-	// GetHandler returns the handler for the given event
-	GetHandler(event any) (func(context.Context, any, map[string]any) (map[string]any, error), error)
+	// GetTransitionHandlers extracts handlers from a transition object
+	GetTransitionHandlers(transition any) []func(context.Context, any, map[string]any) (map[string]any, error)
 
 	// LoadEntity loads an entity by URN
 	LoadEntity(ctx context.Context, urn string) (any, error)
@@ -181,11 +182,8 @@ func (a *workflowDefinitionAdapter[E, Ev, S]) FindValidTransition(entity any, pa
 		// Check from state (empty = any state)
 		if len(t.From) > 0 {
 			validFrom := false
-			for _, from := range t.From {
-				if from == currentState {
-					validFrom = true
-					break
-				}
+			if slices.Contains(t.From, currentState) {
+				break
 			}
 			if !validFrom {
 				continue
@@ -219,18 +217,19 @@ func (a *workflowDefinitionAdapter[E, Ev, S]) GetTransitionTargetState(transitio
 	return t.To
 }
 
-func (a *workflowDefinitionAdapter[E, Ev, S]) GetHandler(event any) (func(context.Context, any, map[string]any) (map[string]any, error), error) {
-	ev := event.(Ev)
-	handler, ok := a.def.Handlers[ev]
-	if !ok {
-		return nil, ErrHandlerNotFound
-	}
+func (a *workflowDefinitionAdapter[E, Ev, S]) GetTransitionHandlers(transition any) []func(context.Context, any, map[string]any) (map[string]any, error) {
+	t := transition.(*Transition[E, Ev, S])
 
-	// Wrap the typed handler to match the untyped signature
-	return func(ctx context.Context, entity any, payload map[string]any) (map[string]any, error) {
-		e := entity.(E)
-		return handler(ctx, e, payload)
-	}, nil
+	// Convert typed handlers to untyped handlers
+	handlers := make([]func(context.Context, any, map[string]any) (map[string]any, error), len(t.Handlers))
+	for i, handler := range t.Handlers {
+		h := handler // Capture for closure
+		handlers[i] = func(ctx context.Context, entity any, payload map[string]any) (map[string]any, error) {
+			e := entity.(E)
+			return h(ctx, e, payload)
+		}
+	}
+	return handlers
 }
 
 func (a *workflowDefinitionAdapter[E, Ev, S]) LoadEntity(ctx context.Context, urn string) (any, error) {
@@ -249,23 +248,11 @@ func (a *workflowDefinitionAdapter[E, Ev, S]) GetCurrentState(entity any) any {
 }
 
 func (a *workflowDefinitionAdapter[E, Ev, S]) IsFinalState(state any) bool {
-	s := state.(S)
-	for _, final := range a.def.States.Finals {
-		if final == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a.def.States.Finals, state.(S))
 }
 
 func (a *workflowDefinitionAdapter[E, Ev, S]) IsIdleState(state any) bool {
-	s := state.(S)
-	for _, idle := range a.def.States.Idles {
-		if idle == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a.def.States.Idles, state.(S))
 }
 
 func (a *workflowDefinitionAdapter[E, Ev, S]) GetFailedState() any {

@@ -9,6 +9,8 @@ import (
 )
 
 // SagaCoordinator orchestrates distributed transactions with compensation
+//
+//nolint:revive // Keeping SagaCoordinator name for external API clarity
 type SagaCoordinator struct {
 	steps    []SagaStep
 	strategy CompensationStrategy
@@ -17,6 +19,8 @@ type SagaCoordinator struct {
 }
 
 // SagaStep represents a single step in a saga transaction
+//
+//nolint:revive // Keeping SagaStep name for external API clarity
 type SagaStep struct {
 	// Name identifies the step
 	Name string
@@ -161,7 +165,9 @@ func (c *SagaCoordinator) Execute(ctx context.Context, initialData map[string]an
 				execution.Error = fmt.Sprintf("step failed: %v, compensation failed: %v", err, compErr)
 
 				if c.history != nil {
-					c.history.Save(ctx, execution)
+					if saveErr := c.history.Save(ctx, execution); saveErr != nil {
+						c.logger.Error("failed to save saga execution", "error", saveErr)
+					}
 				}
 
 				return fmt.Errorf("saga failed and compensation failed: step=%s, stepErr=%w, compErr=%v",
@@ -173,7 +179,9 @@ func (c *SagaCoordinator) Execute(ctx context.Context, initialData map[string]an
 			execution.Error = err.Error()
 
 			if c.history != nil {
-				c.history.Save(ctx, execution)
+				if saveErr := c.history.Save(ctx, execution); saveErr != nil {
+					c.logger.Error("failed to save saga execution", "error", saveErr)
+				}
 			}
 
 			return fmt.Errorf("saga failed at step %s: %w", step.Name, err)

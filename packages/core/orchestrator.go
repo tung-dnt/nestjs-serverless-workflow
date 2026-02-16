@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // Orchestrator manages workflow execution and event routing
@@ -136,15 +139,15 @@ func (o *Orchestrator) executeWorkflow(
 			"from", currentState,
 		)
 
-		// Get and execute the handler
-		handler, err := def.GetHandler(transitionEvent)
-		if err != nil {
+		// Get handlers from transition and execute with fanout pattern
+		handlers := def.GetTransitionHandlers(transition)
+		if len(handlers) == 0 {
 			// Update to failed state
-			o.updateToFailedState(ctx, def, entity, event.URN, err)
-			return fmt.Errorf("handler not found for event %v: %w", transitionEvent, err)
+			o.updateToFailedState(ctx, def, entity, event.URN, fmt.Errorf("no handlers found for transition"))
+			return fmt.Errorf("no handlers found for transition with event %v", transitionEvent)
 		}
 
-		newPayload, err := handler(ctx, entity, stepPayload)
+		newPayload, err := o.executeFanoutHandlers(ctx, handlers, entity, stepPayload)
 		if err != nil {
 			// Update to failed state on handler error
 			o.updateToFailedState(ctx, def, entity, event.URN, err)
@@ -206,6 +209,58 @@ func (o *Orchestrator) executeWorkflow(
 	}
 
 	return nil
+}
+
+// executeFanoutHandlers runs multiple handlers concurrently with error aggregation
+func (o *Orchestrator) executeFanoutHandlers(
+	ctx context.Context,
+	handlers []func(context.Context, any, map[string]any) (map[string]any, error),
+	entity any,
+	payload map[string]any,
+) (map[string]any, error) {
+	if len(handlers) == 0 {
+		return payload, nil
+	}
+
+	// Single handler optimization - no need for concurrent execution
+	if len(handlers) == 1 {
+		return handlers[0](ctx, entity, payload)
+	}
+
+	// Concurrent fanout for multiple handlers
+	results := make(map[string]map[string]any)
+	var mu sync.Mutex
+
+	g, gctx := errgroup.WithContext(ctx)
+
+	for idx, handler := range handlers {
+		idx, handler := idx, handler // Capture for closure
+		g.Go(func() error {
+			result, err := handler(gctx, entity, payload)
+			if err != nil {
+				return fmt.Errorf("handler %d failed: %w", idx, err)
+			}
+
+			mu.Lock()
+			results[fmt.Sprintf("handler_%d", idx)] = result
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	// Wait for all handlers and aggregate errors
+	if err := g.Wait(); err != nil {
+		o.logger.Error("fanout handlers failed", "error", err)
+		return nil, err
+	}
+
+	// Merge results into nested map
+	merged := make(map[string]any)
+	for key, result := range results {
+		merged[key] = result
+	}
+
+	return merged, nil
 }
 
 // updateToFailedState updates the entity to the failed state

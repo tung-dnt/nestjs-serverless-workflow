@@ -1,3 +1,4 @@
+// Package sqs provides AWS SQS event emitter implementation for the eventbus.
 package sqs
 
 import (
@@ -14,6 +15,8 @@ import (
 
 // SQSClient defines the interface for SQS operations
 // This allows mocking in tests
+//
+//nolint:revive // Keeping SQSClient name for clarity with AWS SDK types
 type SQSClient interface {
 	SendMessage(ctx context.Context, params *sqs.SendMessageInput, optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
 	SendMessageBatch(ctx context.Context, params *sqs.SendMessageBatchInput, optFns ...func(*sqs.Options)) (*sqs.SendMessageBatchOutput, error)

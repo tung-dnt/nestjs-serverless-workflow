@@ -1,3 +1,4 @@
+// Package retry provides retry strategies with exponential backoff and jitter.
 package retry
 
 import (
@@ -69,6 +70,7 @@ func (b *ExponentialBackoff) NextDelay(attempt int) time.Duration {
 	// Add jitter if configured
 	if b.Jitter > 0 {
 		jitterAmount := delay * b.Jitter
+		//nolint:gosec // Using math/rand for jitter is acceptable; not security-sensitive
 		delay = delay - jitterAmount + (rand.Float64() * 2 * jitterAmount)
 	}
 
@@ -120,7 +122,7 @@ func NewFixedBackoff(delay time.Duration, maxRetries int) *FixedBackoff {
 }
 
 // NextDelay returns the fixed delay
-func (b *FixedBackoff) NextDelay(attempt int) time.Duration {
+func (b *FixedBackoff) NextDelay(_ int) time.Duration {
 	return b.Delay
 }
 

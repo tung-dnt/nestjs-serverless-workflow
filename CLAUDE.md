@@ -3,6 +3,9 @@
 ## Second brains
 All project knowledge – architecture decisions, error patterns, dependency choices, discussions, and context – lives in the **NotebookLM notebook - nlm-cli-skill**. This file does NOT store knowledge. The notebook is the single source of truth.
 
+- Whenever new feature created, create new notebookLM source
+- Whenever updating new feature, update notebookLM source
+
 ## Implementations & Best Practices
 - Apply TDD - Test Driven Development methods
 - Use `context7` for latest documentation reference everytime you make changes
