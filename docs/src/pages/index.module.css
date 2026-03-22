@@ -1,25 +1,177 @@
-/**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
- */
-
+/* Hero Banner */
 .heroBanner {
-  padding: 4rem 0;
+  background: linear-gradient(135deg, var(--hero-bg-start) 0%, var(--hero-bg-end) 100%);
+  color: var(--hero-text);
+  padding: 6rem 2rem 5rem;
   text-align: center;
   position: relative;
   overflow: hidden;
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+.heroBanner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(224, 35, 78, 0.15) 0%, transparent 60%);
+  pointer-events: none;
 }
 
+.heroTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.heroTitleAccent {
+  font-style: italic;
+  background: linear-gradient(90deg, #e0234e, #ff6b6b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.heroSubtitle {
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 640px;
+  margin: 0 auto 2rem;
+  line-height: 1.6;
+}
+
+/* Install command */
+.installCommand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.75rem 1.25rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  margin-bottom: 2rem;
+}
+
+.installCommand:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.installPrompt {
+  color: rgba(255, 255, 255, 0.5);
+  user-select: none;
+}
+
+.installText {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.installPkg {
+  color: #ff6b6b;
+}
+
+.copyIcon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.installCommand:hover .copyIcon {
+  opacity: 1;
+}
+
+/* CTA Buttons */
 .buttons {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
+.primaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #e0234e;
+  color: #ffffff !important;
+  border: 2px solid #e0234e;
+  border-radius: 8px;
+  padding: 0.75rem 1.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.primaryBtn:hover {
+  background: #c5103e;
+  border-color: #c5103e;
+  transform: translateY(-1px);
+}
+
+.outlineBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: #ffffff !important;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 0.75rem 1.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+
+.outlineBtn:hover {
+  border-color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Badges row */
+.badges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  height: 24px;
+}
+
+@media screen and (max-width: 768px) {
+  .heroBanner {
+    padding: 4rem 1.5rem 3rem;
+  }
+
+  .heroTitle {
+    font-size: 2rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1.05rem;
+  }
+
+  .buttons {
+    flex-direction: column;
+  }
+
+  .installCommand {
+    font-size: 0.85rem;
+    padding: 0.6rem 1rem;
+  }
+}

@@ -1,31 +1,63 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Custom CSS for NestJS Serverless Workflow documentation site.
+ * Inspired by MikroORM's landing page design.
  */
 
-/* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-color-primary: #e0234e;
+  --ifm-color-primary-dark: #d01142;
+  --ifm-color-primary-darker: #c5103e;
+  --ifm-color-primary-darkest: #a20d33;
+  --ifm-color-primary-light: #e4395f;
+  --ifm-color-primary-lighter: #e64467;
+  --ifm-color-primary-lightest: #eb6d88;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  --hero-bg-start: #1a1a2e;
+  --hero-bg-end: #16213e;
+  --hero-text: #ffffff;
+  --section-bg-alt: #f8f9fa;
+  --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --card-border: #e8e8e8;
+  --card-icon-bg: #fff0f3;
+  --card-icon-color: #e0234e;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+  --ifm-color-primary: #e0234e;
+  --ifm-color-primary-dark: #d01142;
+  --ifm-color-primary-darker: #c5103e;
+  --ifm-color-primary-darkest: #a20d33;
+  --ifm-color-primary-light: #e4395f;
+  --ifm-color-primary-lighter: #e64467;
+  --ifm-color-primary-lightest: #eb6d88;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+
+  --section-bg-alt: #1b1b1d;
+  --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --card-border: #3a3a3a;
+  --card-icon-bg: #2a1520;
+  --card-icon-color: #e4395f;
 }
 
+/* Section utility styles */
+.sectionAlt {
+  background-color: var(--section-bg-alt);
+}
+
+.sectionTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.sectionSubtitle {
+  text-align: center;
+  color: var(--ifm-color-emphasis-600);
+  font-size: 1.1rem;
+  margin-bottom: 2.5rem;
+}

@@ -1,88 +1,115 @@
+import Link from '@docusaurus/Link';
 import Heading from '@theme/Heading';
-import clsx from 'clsx';
-import { JSX } from 'react/jsx-runtime';
-
+import type { JSX, ReactNode } from 'react';
 import styles from './styles.module.css';
 
 type FeatureItem = {
   title: string;
-  Svg?: React.ComponentType<React.ComponentProps<'svg'>>;
-  description: JSX.Element;
+  icon: ReactNode;
+  description: string;
+  link: string;
 };
+
+function FeatureIcon({ children }: { children: ReactNode }) {
+  return <div className={styles.iconWrapper}>{children}</div>;
+}
 
 const FeatureList: FeatureItem[] = [
   {
     title: 'State Machine Engine',
-    description: (
-      <>
-        Define workflows with states, transitions, and events. Built-in support for
-        final states, idle states, and failure handling.
-      </>
+    icon: (
+      <svg className={styles.iconSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 6v6l4 2" />
+      </svg>
     ),
-  },
-  {
-    title: 'Event-Driven Architecture',
-    description: (
-      <>
-        Integrate with message brokers like SQS, Kafka, or RabbitMQ. Publish and
-        consume workflow events seamlessly.
-      </>
-    ),
+    description:
+      'Define workflows with states, transitions, and events. Built-in support for final states, idle states, and failure handling.',
+    link: '/docs/workflow',
   },
   {
     title: 'Serverless Optimized',
-    description: (
-      <>
-        Built specifically for AWS Lambda with automatic timeout handling, batch
-        processing, and graceful shutdown capabilities.
-      </>
+    icon: (
+      <svg className={styles.iconSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+      </svg>
     ),
+    description:
+      'Built for AWS Lambda with automatic timeout handling, batch processing, and graceful shutdown. Minimal cold start overhead.',
+    link: '/docs/adapters',
+  },
+  {
+    title: 'Durable Execution',
+    icon: (
+      <svg className={styles.iconSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+    ),
+    description:
+      'Checkpoint and replay execution with the Durable Lambda Adapter. Survive timeouts and resume exactly where you left off.',
+    link: '/docs/event-bus',
+  },
+  {
+    title: 'Fully Type-Safe',
+    icon: (
+      <svg className={styles.iconSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+      </svg>
+    ),
+    description:
+      'Full TypeScript support with comprehensive type definitions. Catch workflow configuration errors at compile time, not runtime.',
+    link: '/docs/workflow',
   },
   {
     title: 'Tree-Shakable',
-    description: (
-      <>
-        Subpath exports ensure minimal bundle sizes. Import only what you need
-        for faster cold starts in serverless environments.
-      </>
+    icon: (
+      <svg className={styles.iconSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+        <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
+      </svg>
     ),
+    description:
+      'Subpath exports ensure minimal bundle sizes. Import only what you need for faster cold starts in serverless environments.',
+    link: '/docs/getting-started',
   },
   {
-    title: 'Type-Safe',
-    description: (
-      <>
-        Full TypeScript support with comprehensive type definitions. Catch errors
-        at compile time, not runtime.
-      </>
+    title: 'Retry & Error Handling',
+    icon: (
+      <svg className={styles.iconSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 4 23 10 17 10" />
+        <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+      </svg>
     ),
-  },
-  {
-    title: 'Retry Logic',
-    description: (
-      <>
-        Built-in retry mechanisms with exponential backoff. Handle transient
-        failures gracefully with configurable retry policies.
-      </>
-    ),
+    description:
+      'Built-in retry with exponential and linear backoff. Handle transient failures gracefully with configurable @WithRetry policies.',
+    link: '/docs/api-reference/decorators',
   },
 ];
 
-function Feature({title, description}: FeatureItem) {
+function Feature({ title, icon, description, link }: FeatureItem) {
   return (
-    <div className={clsx('col col--4')}>
-      <div className="text--center padding-horiz--md">
-        <Heading as="h3">{title}</Heading>
-        <p>{description}</p>
-      </div>
-    </div>
+    <Link className={styles.card} to={link}>
+      <FeatureIcon>{icon}</FeatureIcon>
+      <Heading as="h3" className={styles.cardTitle}>
+        {title}
+      </Heading>
+      <p className={styles.cardDesc}>{description}</p>
+    </Link>
   );
 }
 
 export default function HomepageFeatures(): JSX.Element {
   return (
-    <section className={styles.features}>
+    <section className={styles.featuresSection}>
       <div className="container">
-        <div className="row">
+        <Heading as="h2" className="sectionTitle">
+          Why NestJS Serverless Workflow?
+        </Heading>
+        <p className="sectionSubtitle">
+          A modern workflow engine that gets out of your way and lets you focus on business logic
+        </p>
+        <div className={styles.grid}>
           {FeatureList.map((props, idx) => (
             <Feature key={idx} {...props} />
           ))}
