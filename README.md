@@ -8,22 +8,21 @@ A powerful, tree-shakable workflow and state machine library for NestJS applicat
 ## Features
 
 - 🎯 **State Machine Engine**: Define workflows with states, transitions, and events
-- 🔄 **Event-Driven Architecture**: Integrate with message brokers (SQS, Kafka, RabbitMQ, etc.)
-- ⚡ **Serverless Optimized**: Built for AWS Lambda with automatic timeout handling
+- ⚡ **Serverless Optimized**: Built for AWS Lambda with durable execution support
+- 🔄 **Durable Execution**: Checkpoint and replay workflows across Lambda invocations using AWS Durable Functions
 - 📦 **Tree-Shakable**: Subpath exports ensure minimal bundle sizes
 - 🛡️ **Type-Safe**: Full TypeScript support with comprehensive type definitions
 - 🔁 **Retry Logic**: Built-in retry mechanisms with exponential backoff
 - 🎨 **Decorator-Based API**: Clean, declarative workflow definitions
-- 📊 **Saga Pattern Support**: Distributed transaction managementa (TODO)
 
 ## Installation
 
 ```bash
-# Using npm
-npm install nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
-
 # Using bun
 bun add nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
+
+# Using npm
+npm install nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
 
 # Using yarn
 yarn add nestjs-serverless-workflow @nestjs/common @nestjs/core reflect-metadata rxjs
@@ -73,7 +72,6 @@ import { Workflow, OnEvent, Entity, Payload } from 'nestjs-serverless-workflow/c
     },
   ],
   entityService: 'entity.order',
-  brokerPublisher: 'broker.order',
 })
 export class OrderWorkflow {
   @OnEvent('order.submit')
@@ -133,7 +131,6 @@ import { OrderEntityService } from './order-entity.service';
     WorkflowModule.register({
       entities: [{ provide: 'entity.order', useClass: OrderEntityService }],
       workflows: [OrderWorkflow],
-      brokers: [{ provide: 'broker.order', useClass: MySqsEmitter }],
     }),
   ],
 })
@@ -146,7 +143,6 @@ export class OrderModule {}
 
 - [Getting Started](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/getting-started)
 - [Workflow Module](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/workflow)
-- [Event Bus](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/event-bus)
 - [Lambda Adapter](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/adapters)
 - [API Reference](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/api-reference/workflow-module)
 - [Examples](https://tung-dnt.github.io/nestjs-serverless-workflow/docs/examples/lambda-order-state-machine)
@@ -157,35 +153,48 @@ The library is organized into tree-shakable subpath exports:
 
 ```
 nestjs-serverless-workflow/
-├── core          # Core workflow engine (decorators, services, types)
-├── event-bus     # Event publishing and broker integration
-├── adapter       # Runtime adapters (Lambda, HTTP)
+├── core          # Core workflow engine (decorators, services, types, IWorkflowEvent)
+├── adapter       # Durable Lambda adapter for checkpoint/replay execution
 └── exception     # Custom exception types
 ```
 
 ### Import Only What You Need
 
 ```typescript
-// Only imports workflow module
-import { WorkflowModule } from 'nestjs-serverless-workflow/core';
+// Core workflow engine
+import { WorkflowModule, IWorkflowEvent } from 'nestjs-serverless-workflow/core';
 
-// Only imports event bus
-import { IBrokerPublisher } from 'nestjs-serverless-workflow/event-bus';
+// Durable Lambda adapter
+import { DurableLambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
 
-// Only imports Lambda adapter
-import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
-
-// Only imports exceptions
+// Exceptions
 import { UnretriableException } from 'nestjs-serverless-workflow/exception';
 ```
 
 This ensures minimal bundle sizes and faster cold starts in serverless environments.
 
+## Transit Result
+
+The `transit()` method on the orchestrator returns a `TransitResult`, which adapters use to decide what to do next:
+
+```typescript
+type TransitResult =
+  | { status: 'final'; state: string | number }
+  | { status: 'idle'; state: string | number }
+  | { status: 'continued'; nextEvent: IWorkflowEvent }
+  | { status: 'no_transition'; state: string | number };
+```
+
+- **`final`** -- the workflow has reached a terminal state.
+- **`idle`** -- the workflow is waiting for an external event.
+- **`continued`** -- the workflow auto-transitioned and provides the next event to process.
+- **`no_transition`** -- no matching transition was found from the current state.
+
 ## Examples
 
 Check out the [examples directory](https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples) for complete working examples:
 
-- **[Lambda Order State Machine](https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples/lambda-order-state-machine/)**: Complete AWS Lambda example with SQS and DynamoDB
+- **[Lambda Order State Machine](https://github.com/tung-dnt/nestjs-serverless-workflow/tree/main/examples/lambda-order-state-machine/)**: Complete AWS Lambda example with DynamoDB and durable execution
 
 ## Key Concepts
 
@@ -214,7 +223,18 @@ Transitions define how entities move from one state to another, triggered by eve
 
 ### Events
 
-Events trigger state transitions. Define event handlers using the `@OnEvent` decorator:
+Events trigger state transitions. The `IWorkflowEvent` interface (from `nestjs-serverless-workflow/core`) defines the shape of workflow events:
+
+```typescript
+interface IWorkflowEvent<T = any> {
+  event: string;        // event name that triggers a transition
+  urn: string | number; // unique identifier of the entity
+  payload?: T;          // optional data passed to the handler
+  attempt: number;      // retry attempt counter
+}
+```
+
+Define event handlers using the `@OnEvent` decorator:
 
 ```typescript
 @OnEvent('order.submit')
@@ -225,19 +245,22 @@ async onSubmit(@Entity() entity: Order, @Payload() data: any) {
 
 ## AWS Lambda Integration
 
-The library includes a Lambda adapter that handles:
+The library includes a Durable Lambda adapter (`DurableLambdaEventHandler`) that leverages [AWS Lambda Durable Functions](https://aws.amazon.com/blogs/compute/) for checkpoint and replay. Each workflow instance runs as a single durable execution spanning multiple Lambda invocations:
 
-- Automatic timeout management
-- Batch item failures
-- Graceful shutdown before timeout
-- SQS event source integration
+- **Checkpointed steps** -- completed transitions are persisted; on replay they return stored results.
+- **Idle state pausing** -- idle states pause via `waitForCallback()` until an external system resumes the workflow.
+- **Final state completion** -- reaching a final state ends the durable execution.
 
 ```typescript
-import { LambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
-import { type SQSHandler } from 'aws-lambda';
+import { withDurableExecution } from '@aws/durable-execution-sdk-js';
+import { NestFactory } from '@nestjs/core';
+import { DurableLambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+import { OrderModule } from './order/order.module';
 
-const app = await NestFactory.createApplicationContext(AppModule);
-export const handler: SQSHandler = LambdaEventHandler(app);
+const app = await NestFactory.createApplicationContext(OrderModule);
+await app.init();
+
+export const handler = DurableLambdaEventHandler(app, withDurableExecution);
 ```
 
 ## Requirements
@@ -276,4 +299,4 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 - [NestJS](https://nestjs.com/) - A progressive Node.js framework
 - [AWS Lambda](https://aws.amazon.com/lambda/) - Serverless compute service
-- [AWS SQS](https://aws.amazon.com/sqs/) - Message queuing service
+- [AWS Lambda Durable Functions](https://docs.aws.amazon.com/lambda/latest/dg/durable-functions.html) - Durable execution for Lambda

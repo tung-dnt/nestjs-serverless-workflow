@@ -3,11 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { WorkflowModule } from '@/core/workflow.module';
 import { OrchestratorService } from '@/core/providers/orchestrator.service';
 import { assertEntityState, createWorkflowEvent } from '../../fixtures/test-helpers';
-import {
-  UserOnboardingWorkflow,
-  OnboardingEvent,
-  ONBOARDING_ENTITY_TOKEN,
-} from './onboarding.workflow';
+import { UserOnboardingWorkflow, OnboardingEvent, ONBOARDING_ENTITY_TOKEN } from './onboarding.workflow';
 import { UserEntityService, OnboardingState } from './user.entity';
 
 describe('User Onboarding Workflow E2E', () => {

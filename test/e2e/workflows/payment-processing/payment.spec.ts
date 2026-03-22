@@ -4,12 +4,7 @@ import { WorkflowModule } from '@/core/workflow.module';
 import { OrchestratorService } from '@/core/providers/orchestrator.service';
 import { MockRetryHandler } from '../../fixtures/mock-retry-handler.service';
 import { assertEntityState, createWorkflowEvent } from '../../fixtures/test-helpers';
-import {
-  PaymentWorkflow,
-  PaymentEvent,
-  PAYMENT_ENTITY_TOKEN,
-  PAYMENT_RETRY_HANDLER_TOKEN,
-} from './payment.workflow';
+import { PaymentWorkflow, PaymentEvent, PAYMENT_ENTITY_TOKEN, PAYMENT_RETRY_HANDLER_TOKEN } from './payment.workflow';
 import { PaymentEntityService, PaymentState } from './payment.entity';
 
 describe('Payment Processing Workflow E2E', () => {

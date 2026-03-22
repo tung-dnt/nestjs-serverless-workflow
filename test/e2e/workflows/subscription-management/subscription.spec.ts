@@ -3,11 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { WorkflowModule } from '@/core/workflow.module';
 import { OrchestratorService } from '@/core/providers/orchestrator.service';
 import { assertEntityState, createWorkflowEvent } from '../../fixtures/test-helpers';
-import {
-  SubscriptionWorkflow,
-  SubscriptionEvent,
-  SUBSCRIPTION_ENTITY_TOKEN,
-} from './subscription.workflow';
+import { SubscriptionWorkflow, SubscriptionEvent, SUBSCRIPTION_ENTITY_TOKEN } from './subscription.workflow';
 import { SubscriptionEntityService, SubscriptionState } from './subscription.entity';
 
 describe('Subscription Management Workflow E2E', () => {

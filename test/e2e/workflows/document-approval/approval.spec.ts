@@ -3,11 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { WorkflowModule } from '@/core/workflow.module';
 import { OrchestratorService } from '@/core/providers/orchestrator.service';
 import { assertEntityState, createWorkflowEvent } from '../../fixtures/test-helpers';
-import {
-  DocumentApprovalWorkflow,
-  ApprovalEvent,
-  APPROVAL_ENTITY_TOKEN,
-} from './approval.workflow';
+import { DocumentApprovalWorkflow, ApprovalEvent, APPROVAL_ENTITY_TOKEN } from './approval.workflow';
 import { DocumentEntityService, DocumentState } from './document.entity';
 
 describe('Document Approval Workflow E2E', () => {

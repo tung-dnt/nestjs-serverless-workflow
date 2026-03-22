@@ -1,27 +1,18 @@
-import type { DurableWorkflowEvent, DurableWorkflowResult } from "@/adapter";
-import { DurableLambdaEventHandler } from "@/adapter";
-import { WorkflowModule } from "@/core";
-import { Test } from "@nestjs/testing";
-import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import {
-  MockDurableContext,
-  mockWithDurableExecution,
-} from "../fixtures/mock-durable-context";
+import type { DurableWorkflowEvent, DurableWorkflowResult } from '@/adapter';
+import { DurableLambdaEventHandler } from '@/adapter';
+import { WorkflowModule } from '@/core';
+import { Test } from '@nestjs/testing';
+import { beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { MockDurableContext, mockWithDurableExecution } from '../fixtures/mock-durable-context';
 import {
   ONBOARDING_ENTITY_TOKEN,
   OnboardingEvent,
   UserOnboardingWorkflow,
-} from "../workflows/user-onboarding/onboarding.workflow";
-import {
-  OnboardingState,
-  UserEntityService,
-} from "../workflows/user-onboarding/user.entity";
+} from '../workflows/user-onboarding/onboarding.workflow';
+import { OnboardingState, UserEntityService } from '../workflows/user-onboarding/user.entity';
 
-describe("Durable Lambda Adapter — User Onboarding E2E", () => {
-  let handler: (
-    event: DurableWorkflowEvent,
-    ctx: MockDurableContext,
-  ) => Promise<DurableWorkflowResult>;
+describe('Durable Lambda Adapter — User Onboarding E2E', () => {
+  let handler: (event: DurableWorkflowEvent, ctx: MockDurableContext) => Promise<DurableWorkflowResult>;
   let entityService: UserEntityService;
 
   beforeAll(async () => {
@@ -50,16 +41,13 @@ describe("Durable Lambda Adapter — User Onboarding E2E", () => {
     entityService.clear();
   });
 
-  test("should walk REGISTRATION → EMAIL_VERIFICATION → PROFILE_SETUP → COMPLETED via callbacks", async () => {
+  test('should walk REGISTRATION → EMAIL_VERIFICATION → PROFILE_SETUP → COMPLETED via callbacks', async () => {
     const user = await entityService.create();
     await entityService.update(user, OnboardingState.REGISTRATION);
 
     const ctx = new MockDurableContext();
 
-    const resultPromise = handler(
-      { urn: user.id, initialEvent: OnboardingEvent.REGISTERED },
-      ctx,
-    );
+    const resultPromise = handler({ urn: user.id, initialEvent: OnboardingEvent.REGISTERED }, ctx);
 
     // Wait for adapter to register callback at EMAIL_VERIFICATION idle state
     const idleKey1 = `idle:${OnboardingState.EMAIL_VERIFICATION}:0`;
@@ -74,28 +62,25 @@ describe("Durable Lambda Adapter — User Onboarding E2E", () => {
     await ctx.waitUntilCallbackRegistered(idleKey2);
     ctx.submitCallback(idleKey2, {
       event: OnboardingEvent.PROFILE_SETUP,
-      payload: { profileData: { firstName: "Test", lastName: "User" } },
+      payload: { profileData: { firstName: 'Test', lastName: 'User' } },
     });
 
     const result = await resultPromise;
 
-    expect(result.status).toBe("completed");
+    expect(result.status).toBe('completed');
     expect(result.state).toBe(OnboardingState.COMPLETED);
 
     const updatedUser = await entityService.load(user.id);
     expect(entityService.status(updatedUser!)).toBe(OnboardingState.COMPLETED);
   });
 
-  test("should handle abandonment at any idle state", async () => {
+  test('should handle abandonment at any idle state', async () => {
     const user = await entityService.create();
     await entityService.update(user, OnboardingState.REGISTRATION);
 
     const ctx = new MockDurableContext();
 
-    const resultPromise = handler(
-      { urn: user.id, initialEvent: OnboardingEvent.REGISTERED },
-      ctx,
-    );
+    const resultPromise = handler({ urn: user.id, initialEvent: OnboardingEvent.REGISTERED }, ctx);
 
     const idleKey = `idle:${OnboardingState.EMAIL_VERIFICATION}:0`;
     await ctx.waitUntilCallbackRegistered(idleKey);
@@ -106,7 +91,7 @@ describe("Durable Lambda Adapter — User Onboarding E2E", () => {
 
     const result = await resultPromise;
 
-    expect(result.status).toBe("completed");
+    expect(result.status).toBe('completed');
     expect(result.state).toBe(OnboardingState.ABANDONED);
   });
 });

@@ -6,11 +6,7 @@ import { MockRetryHandler } from '../fixtures/mock-retry-handler.service';
 import { assertEntityState, createWorkflowEvent } from '../fixtures/test-helpers';
 
 // Import all workflows
-import {
-  OrderWorkflow,
-  OrderEvent,
-  ORDER_ENTITY_TOKEN,
-} from '../workflows/order-processing/order.workflow';
+import { OrderWorkflow, OrderEvent, ORDER_ENTITY_TOKEN } from '../workflows/order-processing/order.workflow';
 import { OrderEntityService, OrderState } from '../workflows/order-processing/order.entity';
 import {
   UserOnboardingWorkflow,

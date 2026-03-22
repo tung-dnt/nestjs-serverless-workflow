@@ -132,9 +132,7 @@ describe('Durable Lambda Adapter — Order Workflow E2E', () => {
 
       const ctx = new MockDurableContext();
 
-      await expect(
-        handler({ urn: order.id, initialEvent: 'nonexistent.event', payload: {} }, ctx),
-      ).rejects.toThrow();
+      await expect(handler({ urn: order.id, initialEvent: 'nonexistent.event', payload: {} }, ctx)).rejects.toThrow();
     });
   });
 
@@ -146,10 +144,7 @@ describe('Durable Lambda Adapter — Order Workflow E2E', () => {
 
       const ctx = new MockDurableContext();
 
-      const result = await handler(
-        { urn: order.id, initialEvent: OrderEvent.CANCELLED, payload: {} },
-        ctx,
-      );
+      const result = await handler({ urn: order.id, initialEvent: OrderEvent.CANCELLED, payload: {} }, ctx);
 
       expect(result.status).toBe('completed');
       expect(result.state).toBe(OrderState.CANCELLED);

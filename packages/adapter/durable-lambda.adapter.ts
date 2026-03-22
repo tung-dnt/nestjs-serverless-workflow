@@ -1,7 +1,5 @@
 import type { INestApplicationContext } from '@nestjs/common';
-// biome-ignore lint/style/useImportType: NestJS DI requires value imports for class injection tokens
-import { OrchestratorService } from '@/core';
-import type { IWorkflowEvent } from '@/core';
+import { OrchestratorService, type IWorkflowEvent } from '@/core';
 
 export interface DurableWorkflowEvent {
   urn: string | number;

@@ -14,7 +14,13 @@ export class WorkflowModule {
   }): DynamicModule {
     const { imports, entities, workflows, providers: extraProviders } = options;
 
-    const providers = [...entities, ...workflows, ...(extraProviders ?? []), StateRouterHelperFactory, OrchestratorService];
+    const providers = [
+      ...entities,
+      ...workflows,
+      ...(extraProviders ?? []),
+      StateRouterHelperFactory,
+      OrchestratorService,
+    ];
 
     return {
       module: WorkflowModule,

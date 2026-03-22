@@ -1,28 +1,21 @@
-import type {
-  IBackoffRetryConfig,
-  IWorkflowDefaultRoute,
-  IWorkflowDefinition,
-  IWorkflowEntity,
-  IWorkflowHandler,
-  TDefaultHandler,
-  TransitResult,
-} from "@/core";
 import {
   getRetryKey,
   WORKFLOW_DEFAULT_EVENT,
   WORKFLOW_DEFINITION_KEY,
   WORKFLOW_HANDLER_KEY,
-} from "@/core";
-import { UnretriableException } from "@/exception/unretriable.exception";
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  type OnModuleInit,
-} from "@nestjs/common";
-import { DiscoveryService, ModuleRef } from "@nestjs/core";
-import type { IWorkflowEvent } from "../types/workflow-event.interface";
-import { StateRouterHelperFactory } from "./router.factory";
+  type IBackoffRetryConfig,
+  type IWorkflowDefaultRoute,
+  type IWorkflowDefinition,
+  type IWorkflowEntity,
+  type IWorkflowHandler,
+  type TDefaultHandler,
+  type TransitResult,
+} from '@/core';
+import { UnretriableException } from '@/exception/unretriable.exception';
+import { BadRequestException, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { DiscoveryService, ModuleRef } from '@nestjs/core';
+import type { IWorkflowEvent } from '../types/workflow-event.interface';
+import { StateRouterHelperFactory } from './router.factory';
 
 /**
  * TODO:
@@ -44,31 +37,22 @@ export class OrchestratorService implements OnModuleInit {
     const providers = this.discoveryService.getProviders();
     for (const provider of providers) {
       const { instance } = provider;
-      if (!instance || !instance.constructor) continue;
+      if (!instance?.constructor) continue;
 
       const [workflowDefinition, handlerStore, defaultHandler] = [
-        Reflect.getMetadata(
-          WORKFLOW_DEFINITION_KEY,
-          instance.constructor,
-        ) as IWorkflowDefinition<object, string, string>,
-        Reflect.getMetadata(
-          WORKFLOW_HANDLER_KEY,
-          instance.constructor,
-        ) as IWorkflowHandler[],
-        Reflect.getMetadata(
-          WORKFLOW_DEFAULT_EVENT,
-          instance.constructor,
-        ) as TDefaultHandler<object>,
+        Reflect.getMetadata(WORKFLOW_DEFINITION_KEY, instance.constructor) as IWorkflowDefinition<
+          object,
+          string,
+          string
+        >,
+        Reflect.getMetadata(WORKFLOW_HANDLER_KEY, instance.constructor) as IWorkflowHandler[],
+        Reflect.getMetadata(WORKFLOW_DEFAULT_EVENT, instance.constructor) as TDefaultHandler<object>,
         [],
       ];
 
-      if (!handlerStore || handlerStore.length === 0 || !workflowDefinition)
-        continue;
+      if (!handlerStore || handlerStore.length === 0 || !workflowDefinition) continue;
 
-      const entityService = this.moduleRef.get<IWorkflowEntity>(
-        workflowDefinition.entityService,
-        { strict: true },
-      );
+      const entityService = this.moduleRef.get<IWorkflowEntity>(workflowDefinition.entityService, { strict: true });
 
       for (const handler of handlerStore) {
         if (this.routes.has(handler.event)) {
@@ -77,10 +61,9 @@ export class OrchestratorService implements OnModuleInit {
           );
         }
         // Retrieve retry config from metadata on the handler function (not from DI container)
-        const retryConfig = Reflect.getMetadata(
-          getRetryKey(handler.name),
-          handler.handler,
-        ) as IBackoffRetryConfig | undefined;
+        const retryConfig = Reflect.getMetadata(getRetryKey(handler.name), handler.handler) as
+          | IBackoffRetryConfig
+          | undefined;
 
         this.routes.set(handler.event, {
           handler: handler.handler,
@@ -93,26 +76,15 @@ export class OrchestratorService implements OnModuleInit {
         });
       }
     }
-    this.logger.log(
-      `StateRouter initialized with ${this.routes.size} routes: `,
-      Array.from(this.routes.keys()),
-    );
+    this.logger.log(`StateRouter initialized with ${this.routes.size} routes: `, Array.from(this.routes.keys()));
   }
 
   async transit(params: IWorkflowEvent): Promise<TransitResult> {
     const { urn, payload, event } = params;
 
     const route = this.routes.get(event);
-    if (!route)
-      throw new BadRequestException(`No workflow found for event: ${event}`);
-    const {
-      definition,
-      instance,
-      defaultHandler,
-      entityService,
-      handlerName,
-      handler,
-    } = route;
+    if (!route) throw new BadRequestException(`No workflow found for event: ${event}`);
+    const { definition, instance, defaultHandler, entityService, handlerName, handler } = route;
 
     if (!definition) {
       const className = instance.name;
@@ -122,33 +94,20 @@ export class OrchestratorService implements OnModuleInit {
     }
 
     const logger = new Logger(`Router::${definition.name}`);
-    const routerHelper = this.routerHelperFactory.create(
-      event,
-      entityService,
-      definition,
-      logger,
-    );
-    logger.log(
-      `Method ${route.handlerName} is being called with arguments:`,
-      params,
-    );
+    const routerHelper = this.routerHelperFactory.create(event, entityService, definition, logger);
+    logger.log(`Method ${route.handlerName} is being called with arguments:`, params);
 
     // ========================= BEGIN routing logic =========================
     let entity = await routerHelper.loadAndValidateEntity(urn);
 
     const entityStatus = entityService.status(entity);
-    const { transition, hasEventStateMatch } = routerHelper.findValidTransition(
-      entity,
-      payload,
-    );
+    const { transition, hasEventStateMatch } = routerHelper.findValidTransition(entity, payload);
 
     if (!transition) {
       // Idle states: silently wait when a transition exists but conditions aren't met
       if (hasEventStateMatch && routerHelper.isInIdleStatus(entity)) {
-        logger.log(
-          `Entity ${urn} is in idle state ${entityStatus}. Conditions not met — waiting for next event.`,
-        );
-        return { status: "idle", state: entityStatus };
+        logger.log(`Entity ${urn} is in idle state ${entityStatus}. Conditions not met — waiting for next event.`);
+        return { status: 'idle', state: entityStatus };
       }
       if (defaultHandler) {
         logger.log(`Falling back to the default transition`, urn);
@@ -160,66 +119,45 @@ export class OrchestratorService implements OnModuleInit {
     }
 
     try {
-      logger.log("======= WORKFLOW STEP STARTED =======");
-      logger.log(
-        `Executing transition from ${entityStatus} to ${transition.to} (${urn})`,
-      );
+      logger.log('======= WORKFLOW STEP STARTED =======');
+      logger.log(`Executing transition from ${entityStatus} to ${transition.to} (${urn})`);
 
-      const args = routerHelper.buildParamDecorators(
-        entity,
-        payload,
-        instance,
-        handlerName,
-      );
+      const args = routerHelper.buildParamDecorators(entity, payload, instance, handlerName);
       const handlerOutput = await handler.apply(instance, args);
 
       // Update entity status
       entity = await entityService.update(entity, transition.to);
-      logger.log(
-        `Element transitioned from ${entityStatus} to ${transition.to} (${urn})`,
-      );
+      logger.log(`Element transitioned from ${entityStatus} to ${transition.to} (${urn})`);
 
       const updatedStatus = entityService.status(entity);
 
       // Final state — workflow complete
-      const definedFinalStates = definition.states.finals as Array<
-        string | number
-      >;
+      const definedFinalStates = definition.states.finals as Array<string | number>;
       if (definedFinalStates.includes(updatedStatus)) {
         logger.log(`Element ${urn} reached final state: ${updatedStatus}`);
-        return { status: "final", state: updatedStatus };
+        return { status: 'final', state: updatedStatus };
       }
 
       // Idle state — wait for explicit external event
       if (routerHelper.isInIdleStatus(entity)) {
-        logger.log(
-          `Element ${urn} reached idle state: ${updatedStatus}. Waiting for explicit event.`,
-        );
-        return { status: "idle", state: updatedStatus };
+        logger.log(`Element ${urn} reached idle state: ${updatedStatus}. Waiting for explicit event.`);
+        return { status: 'idle', state: updatedStatus };
       }
 
       // Find next valid transition
-      const { transition: nextTransition } = routerHelper.findValidTransition(
-        entity,
-        handlerOutput,
-        {
-          skipEventCheck: true,
-        },
-      );
+      const { transition: nextTransition } = routerHelper.findValidTransition(entity, handlerOutput, {
+        skipEventCheck: true,
+      });
 
       if (!nextTransition) {
-        logger.warn(
-          `There's no valid next transition from ${updatedStatus} or the condition is not met. (${urn})`,
-        );
-        return { status: "no_transition", state: updatedStatus };
+        logger.warn(`There's no valid next transition from ${updatedStatus} or the condition is not met. (${urn})`);
+        return { status: 'no_transition', state: updatedStatus };
       }
 
-      const nextEvent = Array.isArray(nextTransition.event)
-        ? nextTransition.event[0]
-        : nextTransition.event;
+      const nextEvent = Array.isArray(nextTransition.event) ? nextTransition.event[0] : nextTransition.event;
       logger.log(`Next event: ${nextEvent} for entity ${urn}`);
       return {
-        status: "continued",
+        status: 'continued',
         nextEvent: {
           event: nextEvent as string,
           urn,
@@ -229,17 +167,14 @@ export class OrchestratorService implements OnModuleInit {
       };
     } catch (e) {
       await entityService.update(entity, definition.states.failed);
-      logger.error(
-        `Transition failed. Setting status to failed (${(e as Error).message})`,
-        urn,
-      );
+      logger.error(`Transition failed. Setting status to failed (${(e as Error).message})`, urn);
       // UnretriableException signals a permanent failure — don't rethrow so the
       // message is not retried by the broker/Lambda adapter.
       if (!(e instanceof UnretriableException)) {
         throw e;
       }
       return {
-        status: "final",
+        status: 'final',
         state: definition.states.failed as string | number,
       };
     }
