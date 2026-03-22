@@ -1,4 +1,4 @@
-import type { IBackoffRetryConfig, ITransitionEvent, IWorkflowEntity } from '@/core';
+import type { Duration, IBackoffRetryConfig, ITransitionEvent, IWorkflowEntity } from '@/core';
 
 /**
  * Defines the structure of a workflow definition, which includes the following properties:
@@ -10,13 +10,23 @@ import type { IBackoffRetryConfig, ITransitionEvent, IWorkflowEntity } from '@/c
  * - `Conditions`: An optional array of condition functions.
  * - `Entity`: An optional entity service or configuration for loading/updating entities.
  */
+/**
+ * An idle state entry — either a bare state value or a state with per-state timeout.
+ */
+export type IdleStateEntry<State> = State | { state: State; timeout?: Duration };
+
 export interface IWorkflowDefinition<T, Event, State> {
   name: string;
   states: {
     finals: State[];
-    idles: State[];
+    idles: IdleStateEntry<State>[];
     failed: State;
   };
+  /**
+   * Default timeout for callback waits (idle & no_transition states).
+   * Per-state timeouts in `idles` take precedence over this value.
+   */
+  defaultCallbackTimeout?: Duration;
   transitions: ITransitionEvent<T, Event, State, any>[];
   conditions?: (<P>(entity: T, payload?: P | T | object | string) => boolean)[];
   /**

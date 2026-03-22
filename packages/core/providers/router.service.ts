@@ -1,5 +1,5 @@
 import { BadRequestException, type Logger } from '@nestjs/common';
-import type { ITransitionEvent, IWorkflowDefinition, IWorkflowEntity } from '../types';
+import type { Duration, ITransitionEvent, IWorkflowDefinition, IWorkflowEntity } from '../types';
 
 export class RouterService<T, Event, State> {
   constructor(
@@ -73,8 +73,20 @@ export class RouterService<T, Event, State> {
     if (!status) {
       throw new Error('Entity status is not defined. Unable to determine if the entity is idle or not.');
     }
-    const definedIdleStatuses = this.workflowDefinition.states.idles as Array<string | number>;
-    return definedIdleStatuses.includes(status);
+    return this.workflowDefinition.states.idles.some((entry) =>
+      typeof entry === 'object' && entry !== null && 'state' in entry
+        ? (entry.state as string | number) === status
+        : (entry as string | number) === status,
+    );
+  }
+
+  getIdleTimeout(state: string | number): Duration | undefined {
+    for (const entry of this.workflowDefinition.states.idles) {
+      if (typeof entry === 'object' && entry !== null && 'state' in entry) {
+        if ((entry.state as string | number) === state) return entry.timeout;
+      }
+    }
+    return undefined;
   }
 
   buildParamDecorators(entity: T, payload: any, target: any, propertyKey: string | symbol) {

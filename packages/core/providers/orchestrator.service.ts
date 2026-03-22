@@ -17,11 +17,6 @@ import { DiscoveryService, ModuleRef } from '@nestjs/core';
 import type { IWorkflowEvent } from '../types/workflow-event.interface';
 import { StateRouterHelperFactory } from './router.factory';
 
-/**
- * TODO:
- * 1. Retry Service: Retry in state handler level via `IRetryHandler`
- *   +) Bind configs to lambda retry config
- */
 @Injectable()
 export class OrchestratorService implements OnModuleInit {
   private routes = new Map<string, IWorkflowDefaultRoute>();
@@ -79,6 +74,10 @@ export class OrchestratorService implements OnModuleInit {
     this.logger.log(`StateRouter initialized with ${this.routes.size} routes: `, Array.from(this.routes.keys()));
   }
 
+  getRetryConfig(event: string): IBackoffRetryConfig | undefined {
+    return this.routes.get(event)?.retryConfig;
+  }
+
   async transit(params: IWorkflowEvent): Promise<TransitResult> {
     const { urn, payload, event } = params;
 
@@ -107,7 +106,8 @@ export class OrchestratorService implements OnModuleInit {
       // Idle states: silently wait when a transition exists but conditions aren't met
       if (hasEventStateMatch && routerHelper.isInIdleStatus(entity)) {
         logger.log(`Entity ${urn} is in idle state ${entityStatus}. Conditions not met — waiting for next event.`);
-        return { status: 'idle', state: entityStatus };
+        const timeout = routerHelper.getIdleTimeout(entityStatus) ?? definition.defaultCallbackTimeout;
+        return { status: 'idle', state: entityStatus, timeout };
       }
       if (defaultHandler) {
         logger.log(`Falling back to the default transition`, urn);
@@ -141,7 +141,8 @@ export class OrchestratorService implements OnModuleInit {
       // Idle state — wait for explicit external event
       if (routerHelper.isInIdleStatus(entity)) {
         logger.log(`Element ${urn} reached idle state: ${updatedStatus}. Waiting for explicit event.`);
-        return { status: 'idle', state: updatedStatus };
+        const timeout = routerHelper.getIdleTimeout(updatedStatus) ?? definition.defaultCallbackTimeout;
+        return { status: 'idle', state: updatedStatus, timeout };
       }
 
       // Find next valid transition
@@ -151,7 +152,7 @@ export class OrchestratorService implements OnModuleInit {
 
       if (!nextTransition) {
         logger.warn(`There's no valid next transition from ${updatedStatus} or the condition is not met. (${urn})`);
-        return { status: 'no_transition', state: updatedStatus };
+        return { status: 'no_transition', state: updatedStatus, timeout: definition.defaultCallbackTimeout };
       }
 
       const nextEvent = Array.isArray(nextTransition.event) ? nextTransition.event[0] : nextTransition.event;

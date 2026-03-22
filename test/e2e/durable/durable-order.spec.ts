@@ -1,17 +1,20 @@
-import { describe, test, expect, beforeAll, beforeEach } from 'bun:test';
+import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
 import { Test } from '@nestjs/testing';
+import { withDurableExecution } from '@aws/durable-execution-sdk-js';
+import { LocalDurableTestRunner, WaitingOperationStatus } from '@aws/durable-execution-sdk-js-testing';
 import { WorkflowModule } from '@/core';
 import { DurableLambdaEventHandler } from '@/adapter';
-import type { DurableWorkflowEvent, DurableWorkflowResult } from '@/adapter';
-import { MockDurableContext, mockWithDurableExecution } from '../fixtures/mock-durable-context';
+import type { DurableWorkflowResult } from '@/adapter';
 import { OrderWorkflow, OrderEvent, ORDER_ENTITY_TOKEN } from '../workflows/order-processing/order.workflow';
 import { OrderEntityService, OrderState } from '../workflows/order-processing/order.entity';
 
 describe('Durable Lambda Adapter — Order Workflow E2E', () => {
-  let handler: (event: DurableWorkflowEvent, ctx: MockDurableContext) => Promise<DurableWorkflowResult>;
+  let handler: ReturnType<typeof DurableLambdaEventHandler>;
   let entityService: OrderEntityService;
 
   beforeAll(async () => {
+    await LocalDurableTestRunner.setupTestEnvironment({ skipTime: true });
+
     const module = await Test.createTestingModule({
       imports: [
         WorkflowModule.register({
@@ -25,7 +28,11 @@ describe('Durable Lambda Adapter — Order Workflow E2E', () => {
     await app.init();
 
     entityService = module.get<OrderEntityService>(ORDER_ENTITY_TOKEN);
-    handler = DurableLambdaEventHandler(app, mockWithDurableExecution) as any;
+    handler = DurableLambdaEventHandler(app, withDurableExecution as any);
+  });
+
+  afterAll(async () => {
+    await LocalDurableTestRunner.teardownTestEnvironment();
   });
 
   beforeEach(() => {
@@ -39,28 +46,29 @@ describe('Durable Lambda Adapter — Order Workflow E2E', () => {
       order.totalAmount = 10;
       await entityService.update(order, OrderState.PENDING);
 
-      const ctx = new MockDurableContext();
+      const runner = new LocalDurableTestRunner<DurableWorkflowResult>({ handlerFunction: handler as any });
 
-      const resultPromise = handler(
-        { urn: order.id, initialEvent: OrderEvent.CREATED, payload: { approved: true } },
-        ctx,
-      );
+      // Get the callback operation reference before running
+      const awaitingCallback = runner.getOperation(`awaiting:${OrderState.PROCESSING}:0`);
 
-      // First transit: PENDING → PROCESSING (handler runs).
-      // From PROCESSING, auto-transition is ambiguous (SHIPPED vs CANCELLED both match).
-      // Adapter calls waitForCallback for `awaiting:PROCESSING:0`.
-      await ctx.waitUntilCallbackRegistered(`awaiting:${OrderState.PROCESSING}:0`);
-
-      ctx.submitCallback(`awaiting:${OrderState.PROCESSING}:0`, {
-        event: OrderEvent.PROCESSING,
-        payload: {},
+      const executionPromise = runner.run({
+        payload: { urn: order.id, initialEvent: OrderEvent.CREATED, payload: { approved: true } },
       });
 
-      // Second transit: PROCESSING → SHIPPED (final).
-      const result = await resultPromise;
+      // Wait for the callback submitter to complete, then send the event
+      await awaitingCallback.waitForData(WaitingOperationStatus.SUBMITTED);
+      await awaitingCallback.sendCallbackSuccess(
+        JSON.stringify({ event: OrderEvent.PROCESSING, payload: {} }),
+      );
 
-      expect(result.status).toBe('completed');
-      expect(result.state).toBe(OrderState.SHIPPED);
+      const execution = await executionPromise;
+
+      expect(execution.getStatus()).toBe('SUCCEEDED');
+      expect(execution.getResult()).toEqual({
+        urn: order.id,
+        status: 'completed',
+        state: OrderState.SHIPPED,
+      });
 
       const updatedOrder = await entityService.load(order.id);
       expect(entityService.status(updatedOrder!)).toBe(OrderState.SHIPPED);
@@ -74,34 +82,37 @@ describe('Durable Lambda Adapter — Order Workflow E2E', () => {
       order.totalAmount = 10;
       await entityService.update(order, OrderState.PENDING);
 
-      const ctx = new MockDurableContext();
+      const runner = new LocalDurableTestRunner<DurableWorkflowResult>({ handlerFunction: handler as any });
 
-      // Send event that doesn't meet conditions (not approved) — entity stays in idle
-      const resultPromise = handler(
-        { urn: order.id, initialEvent: OrderEvent.CREATED, payload: { approved: false } },
-        ctx,
+      // First callback: idle at PENDING (conditions not met)
+      const idleCallback = runner.getOperation(`idle:${OrderState.PENDING}:0`);
+      // Second callback: awaiting at PROCESSING (ambiguous auto-transition)
+      const awaitingCallback = runner.getOperation(`awaiting:${OrderState.PROCESSING}:1`);
+
+      const executionPromise = runner.run({
+        payload: { urn: order.id, initialEvent: OrderEvent.CREATED, payload: { approved: false } },
+      });
+
+      // Idle state: conditions not met, submit with approved: true
+      await idleCallback.waitForData(WaitingOperationStatus.SUBMITTED);
+      await idleCallback.sendCallbackSuccess(
+        JSON.stringify({ event: OrderEvent.CREATED, payload: { approved: true } }),
       );
 
-      // Transit returns 'idle' (PENDING is idle, conditions not met).
-      const idleKey = `idle:${OrderState.PENDING}:0`;
-      await ctx.waitUntilCallbackRegistered(idleKey);
-      ctx.submitCallback(idleKey, {
-        event: OrderEvent.CREATED,
-        payload: { approved: true },
-      });
-
       // Now PENDING → PROCESSING → awaiting callback (ambiguous auto-transition)
-      const awaitKey = `awaiting:${OrderState.PROCESSING}:1`;
-      await ctx.waitUntilCallbackRegistered(awaitKey);
-      ctx.submitCallback(awaitKey, {
-        event: OrderEvent.PROCESSING,
-        payload: {},
+      await awaitingCallback.waitForData(WaitingOperationStatus.SUBMITTED);
+      await awaitingCallback.sendCallbackSuccess(
+        JSON.stringify({ event: OrderEvent.PROCESSING, payload: {} }),
+      );
+
+      const execution = await executionPromise;
+
+      expect(execution.getStatus()).toBe('SUCCEEDED');
+      expect(execution.getResult()).toEqual({
+        urn: order.id,
+        status: 'completed',
+        state: OrderState.SHIPPED,
       });
-
-      const result = await resultPromise;
-
-      expect(result.status).toBe('completed');
-      expect(result.state).toBe(OrderState.SHIPPED);
     });
   });
 
@@ -112,27 +123,34 @@ describe('Durable Lambda Adapter — Order Workflow E2E', () => {
       order.totalAmount = 0;
       await entityService.update(order, OrderState.PENDING);
 
-      const ctx = new MockDurableContext();
+      const runner = new LocalDurableTestRunner<DurableWorkflowResult>({ handlerFunction: handler as any });
 
-      const result = await handler(
-        { urn: order.id, initialEvent: OrderEvent.CREATED, payload: { approved: true } },
-        ctx,
-      );
+      const execution = await runner.run({
+        payload: { urn: order.id, initialEvent: OrderEvent.CREATED, payload: { approved: true } },
+      });
 
-      expect(result.status).toBe('completed');
-      expect(result.state).toBe(OrderState.FAILED);
+      expect(execution.getStatus()).toBe('SUCCEEDED');
+      expect(execution.getResult()).toEqual({
+        urn: order.id,
+        status: 'completed',
+        state: OrderState.FAILED,
+      });
 
       const updatedOrder = await entityService.load(order.id);
       expect(entityService.status(updatedOrder!)).toBe(OrderState.FAILED);
     });
 
-    test('should throw for event with no route', async () => {
+    test('should fail for event with no route', async () => {
       const order = await entityService.create();
       await entityService.update(order, OrderState.PROCESSING);
 
-      const ctx = new MockDurableContext();
+      const runner = new LocalDurableTestRunner<DurableWorkflowResult>({ handlerFunction: handler as any });
 
-      await expect(handler({ urn: order.id, initialEvent: 'nonexistent.event', payload: {} }, ctx)).rejects.toThrow();
+      const execution = await runner.run({
+        payload: { urn: order.id, initialEvent: 'nonexistent.event', payload: {} },
+      });
+
+      expect(execution.getStatus()).toBe('FAILED');
     });
   });
 
@@ -142,12 +160,48 @@ describe('Durable Lambda Adapter — Order Workflow E2E', () => {
       order.items = [{ name: 'Widget', quantity: 1, price: 10 }];
       await entityService.update(order, OrderState.PENDING);
 
-      const ctx = new MockDurableContext();
+      const runner = new LocalDurableTestRunner<DurableWorkflowResult>({ handlerFunction: handler as any });
 
-      const result = await handler({ urn: order.id, initialEvent: OrderEvent.CANCELLED, payload: {} }, ctx);
+      const execution = await runner.run({
+        payload: { urn: order.id, initialEvent: OrderEvent.CANCELLED, payload: {} },
+      });
 
-      expect(result.status).toBe('completed');
-      expect(result.state).toBe(OrderState.CANCELLED);
+      expect(execution.getStatus()).toBe('SUCCEEDED');
+      expect(execution.getResult()).toEqual({
+        urn: order.id,
+        status: 'completed',
+        state: OrderState.CANCELLED,
+      });
+    });
+  });
+
+  describe('Operation Inspection', () => {
+    test('should checkpoint each transit step', async () => {
+      const order = await entityService.create();
+      order.items = [{ name: 'Widget', quantity: 1, price: 10 }];
+      await entityService.update(order, OrderState.PENDING);
+
+      const runner = new LocalDurableTestRunner<DurableWorkflowResult>({ handlerFunction: handler as any });
+
+      const awaitingCallback = runner.getOperation(`awaiting:${OrderState.PROCESSING}:0`);
+
+      const executionPromise = runner.run({
+        payload: { urn: order.id, initialEvent: OrderEvent.CREATED, payload: { approved: true } },
+      });
+
+      await awaitingCallback.waitForData(WaitingOperationStatus.SUBMITTED);
+      await awaitingCallback.sendCallbackSuccess(
+        JSON.stringify({ event: OrderEvent.PROCESSING, payload: {} }),
+      );
+
+      const execution = await executionPromise;
+
+      // Verify step operations were checkpointed
+      const transitStep = runner.getOperation(`transit:${OrderEvent.CREATED}:0:0`);
+      const stepDetails = await transitStep.waitForData(WaitingOperationStatus.COMPLETED);
+      expect(stepDetails.getStepDetails()?.result).toBeDefined();
+
+      expect(execution.getOperations().length).toBeGreaterThanOrEqual(3);
     });
   });
 });
