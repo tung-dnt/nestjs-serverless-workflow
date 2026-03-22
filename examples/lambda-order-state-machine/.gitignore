@@ -8,9 +8,8 @@ yarn.lock
 dist/
 *.tsbuildinfo
 
-# Serverless
-.serverless/
-.serverless_plugins/
+# CDK
+cdk.out/
 
 # Environment
 .env

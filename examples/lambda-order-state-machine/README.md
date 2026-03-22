@@ -1,6 +1,6 @@
 # Lambda Order State Machine Example
 
-Complete AWS Lambda example demonstrating the `nestjs-serverless-workflow` library with Durable Lambda execution, DynamoDB, and serverless deployment.
+Complete AWS Lambda example demonstrating the `nestjs-serverless-workflow` library with Durable Lambda execution, DynamoDB, and AWS CDK deployment.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ Complete AWS Lambda example demonstrating the `nestjs-serverless-workflow` libra
 
 ## Features
 
-- **Serverless Deployment**: Fully configured AWS Lambda with Serverless Framework
+- **CDK Deployment**: Infrastructure as Code with AWS CDK
 - **Durable Execution**: Uses `@aws/durable-execution-sdk-js` for reliable, resumable workflow execution
 - **State Persistence**: DynamoDB for order storage
 - **Auto-Scaling**: On-demand DynamoDB and concurrent Lambda execution
@@ -34,8 +34,7 @@ Create a `.env` file (optional for local development):
 
 ```env
 AWS_REGION=us-east-1
-STAGE=dev
-DYNAMODB_TABLE=lambda-order-state-machine-orders-dev
+DYNAMODB_TABLE=order-state-machine-orders-dev
 ```
 
 ### AWS Credentials
@@ -72,6 +71,12 @@ bun run start:dev  # with hot reload
 bun run build
 ```
 
+### Preview Changes
+
+```bash
+bun run diff
+```
+
 ### Deploy to AWS
 
 ```bash
@@ -81,23 +86,18 @@ bun run deploy:dev
 # Deploy to prod stage
 bun run deploy:prod
 
-# Or specify region and stage
-serverless deploy --stage prod --region us-west-2
+# Or specify stage via CDK context
+bunx cdk deploy -c stage=prod -c region=us-west-2
 ```
 
 ### Deployment Output
 
-After deployment, you'll see:
+After deployment, you'll see CDK outputs:
 
 ```
-Service Information
-service: lambda-order-state-machine
-stage: dev
-region: us-east-1
-stack: lambda-order-state-machine-dev
-
-functions:
-  order-workflow: lambda-order-state-machine-dev-order-workflow
+Outputs:
+order-state-machine-dev.FunctionAliasArn = arn:aws:lambda:us-east-1:123456789:function:order-state-machine-dev-order-workflow:live
+order-state-machine-dev.TableName = order-state-machine-orders-dev
 ```
 
 ## Monitoring
@@ -105,11 +105,7 @@ functions:
 ### View Logs
 
 ```bash
-# Tail logs in real-time
-bun run logs
-
-# Or with serverless directly
-serverless logs -f order-workflow -t --stage dev
+aws logs tail /aws/lambda/order-state-machine-dev-order-workflow --follow
 ```
 
 ### CloudWatch Metrics
@@ -122,18 +118,13 @@ Monitor in AWS Console:
 
 ## Testing
 
-### Invoke Lambda Directly
+### Invoke Lambda via AWS CLI
 
-```bash
-serverless invoke -f order-workflow \
-  --data '{"urn":"order-123","event":"order.submit","payload":{"items":["item1"],"totalAmount":100}}'
-```
-
-### Invoke via AWS CLI
+Use the alias ARN from the deployment output (durable functions must be invoked via qualified ARN):
 
 ```bash
 aws lambda invoke \
-  --function-name lambda-order-state-machine-dev-order-workflow \
+  --function-name arn:aws:lambda:us-east-1:YOUR_ACCOUNT:function:order-state-machine-dev-order-workflow:live \
   --payload '{"urn":"order-123","event":"order.submit","payload":{"items":["item1"],"totalAmount":100}}' \
   output.json
 ```
@@ -173,9 +164,11 @@ lambda-order-state-machine/
 │   │   └── order-entity.service.ts   # Entity service
 │   ├── lambda.ts                     # Durable Lambda handler
 │   └── main.ts                       # Local entry point
+├── infra/
+│   └── order-stack.ts                # CDK stack definition
 ├── dist/                             # Compiled JavaScript
+├── cdk.json                          # CDK app config
 ├── package.json
-├── serverless.yml                    # Serverless config
 ├── tsconfig.json
 └── README.md
 ```
@@ -185,16 +178,16 @@ lambda-order-state-machine/
 ### AWS Resources Created
 
 1. **Lambda Function (Durable)**
-   - Runtime: Node.js 20.x
+   - Runtime: Node.js 22.x
    - Memory: 512 MB
    - Timeout: 15 minutes
+   - Durable execution timeout: 1 hour
+   - Checkpoint retention: 30 days
    - Wrapped with `withDurableExecution` for automatic replay and fault tolerance
 
 2. **DynamoDB Table**
-   - Billing: On-demand
-   - Point-in-time recovery: Enabled
-   - Stream: Enabled (NEW_AND_OLD_IMAGES)
-   - GSI: status-index
+   - Billing: On-demand (PAY_PER_REQUEST)
+   - Partition key: `id` (string)
 
 3. **Durable Execution Store**
    - Managed by `@aws/durable-execution-sdk-js`
@@ -203,7 +196,8 @@ lambda-order-state-machine/
 ### IAM Permissions
 
 The Lambda function has permissions for:
-- DynamoDB: GetItem, PutItem, UpdateItem, Query, Scan
+- DynamoDB: Full read/write access to the orders table
+- Durable execution: `AWSLambdaBasicDurableExecutionRolePolicy`
 
 ## Cost Estimation
 
@@ -253,10 +247,13 @@ WorkflowModule.register({
 **Issue**: `The security token included in the request is invalid`
 **Solution**: Check AWS credentials with `aws sts get-caller-identity`
 
+**Issue**: `CDKToolkit stack not found`
+**Solution**: Bootstrap CDK with `bunx cdk bootstrap`
+
 ### Runtime Issues
 
 **Issue**: Lambda timeout
-**Solution**: Increase timeout in `serverless.yml` or optimize workflow logic
+**Solution**: Check workflow logic for long-running operations
 
 **Issue**: Workflow not progressing
 **Solution**:
@@ -270,7 +267,7 @@ WorkflowModule.register({
 Remove all AWS resources:
 
 ```bash
-serverless remove --stage dev
+bun run destroy
 ```
 
 This will delete:
@@ -282,7 +279,8 @@ This will delete:
 ## Learn More
 
 - [nestjs-serverless-workflow Documentation](../../docs/)
-- [Serverless Framework Docs](https://www.serverless.com/framework/docs)
+- [AWS CDK Developer Guide](https://docs.aws.amazon.com/cdk/v2/guide/)
+- [AWS Lambda Durable Execution](https://docs.aws.amazon.com/lambda/latest/dg/durable-getting-started-iac.html)
 - [AWS Lambda Best Practices](https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html)
 - [AWS Durable Execution SDK](https://github.com/aws/durable-execution-sdk-js)
 - [DynamoDB Best Practices](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/best-practices.html)

@@ -11,7 +11,7 @@ export enum OrderState {
 
 export const OrderTable = new Table({
   documentClient: DocumentClient,
-  name: 'order',
+  name: process.env.DYNAMODB_TABLE ?? 'order',
   partitionKey: {
     name: 'id',
     type: 'string',

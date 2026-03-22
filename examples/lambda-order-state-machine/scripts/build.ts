@@ -28,12 +28,11 @@ const optionalRequirePackages = [
 ];
 
 const result = await build({
-  entrypoints: ['./src/main.ts'],
+  entrypoints: ['./src/lambda.ts'],
   outdir: './dist',
-  target: 'bun',
+  target: 'node',
   external: optionalRequirePackages,
   splitting: true,
-  bytecode: true,
 });
 
 if (!result.success) {

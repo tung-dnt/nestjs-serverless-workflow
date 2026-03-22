@@ -18,31 +18,33 @@ aws configure
 # Enter your AWS credentials
 ```
 
-### 3. Deploy to AWS (2-3 minutes)
+### 3. Bootstrap CDK (first time only)
 
 ```bash
-make deploy-dev
-# or
+bunx cdk bootstrap
+```
+
+### 4. Deploy to AWS (2-3 minutes)
+
+```bash
 bun run deploy:dev
 ```
 
-### 4. Test It! (30 seconds)
+### 5. Test It! (30 seconds)
 
-Invoke the Lambda directly:
+Invoke the Lambda using the alias ARN from the deployment output:
 
 ```bash
-make invoke
-# or manually:
-serverless invoke -f order-workflow \
-  --data '{"urn":"order-1","event":"order.submit","payload":{"items":["laptop"],"totalAmount":999}}'
+aws lambda invoke \
+  --function-name arn:aws:lambda:us-east-1:YOUR_ACCOUNT:function:order-state-machine-dev-order-workflow:live \
+  --payload '{"urn":"order-1","event":"order.submit","payload":{"items":["laptop"],"totalAmount":999}}' \
+  /dev/stdout
 ```
 
 Watch the logs:
 
 ```bash
-make logs
-# or
-bun run logs
+aws logs tail /aws/lambda/order-state-machine-dev-order-workflow --follow
 ```
 
 ## What You Get
@@ -73,8 +75,6 @@ PENDING → PROCESSING → COMPLETED
 Run locally without deploying:
 
 ```bash
-make local
-# or
 bun run start:dev
 ```
 
@@ -82,24 +82,19 @@ bun run start:dev
 
 ```bash
 # Development
-make install          # Install dependencies
-make build            # Compile TypeScript
-make local            # Run locally
-make dev              # Run with hot reload
+bun install               # Install dependencies
+bun run build             # Compile TypeScript
+bun run start             # Run locally
+bun run start:dev         # Run with hot reload
 
 # Deployment
-make deploy-dev       # Deploy to dev
-make deploy-prod      # Deploy to prod
-make logs             # View logs
-make info             # Show deployment info
-
-# Testing
-make invoke           # Invoke Lambda directly
-make show-table       # View DynamoDB items
+bun run deploy:dev        # Deploy to dev
+bun run deploy:prod       # Deploy to prod
+bun run diff              # Preview changes
+bun run synth             # Synthesize CloudFormation
 
 # Cleanup
-make remove           # Remove deployment
-make clean            # Clean build files
+bun run destroy           # Remove deployment
 ```
 
 ## Monitoring
@@ -107,18 +102,12 @@ make clean            # Clean build files
 ### View Logs in Real-Time
 
 ```bash
-make logs
-```
-
-### Check DynamoDB
-
-```bash
-make show-table
+aws logs tail /aws/lambda/order-state-machine-dev-order-workflow --follow
 ```
 
 ## Quick Tips
 
-1. **Use Makefile**: All common operations are in the Makefile
+1. **Use CDK Outputs**: The alias ARN in the deployment output is what you use to invoke the function
 2. **Check Logs**: Always check CloudWatch logs if something fails
 3. **IAM Permissions**: Ensure your AWS user has proper permissions
 4. **Cost**: Dev stage is mostly free tier eligible
@@ -128,16 +117,18 @@ make show-table
 **Issue**: Deployment fails
 **Fix**: Check AWS credentials with `aws sts get-caller-identity`
 
+**Issue**: CDK bootstrap required
+**Fix**: Run `bunx cdk bootstrap` once per account/region
+
 **Issue**: Workflow not processing
-**Fix**: Check Lambda logs with `make logs`
+**Fix**: Check Lambda logs with `aws logs tail`
 
 **Issue**: Permission denied
-**Fix**: Ensure IAM user has Lambda and DynamoDB permissions
+**Fix**: Ensure IAM user has Lambda, DynamoDB, and CloudFormation permissions
 
 ## Next Steps
 
 - Read [README.md](./README.md) for detailed documentation
-- Check [DEPLOYMENT.md](./DEPLOYMENT.md) for production deployment
 - Explore source code in `src/` directory
 - Customize workflow in `src/order/order.workflow.ts`
 
@@ -152,4 +143,3 @@ make show-table
 You now have a production-ready serverless workflow running on AWS with durable execution!
 
 Try modifying the workflow states in `src/order/order.workflow.ts` and redeploy to see changes.
-
