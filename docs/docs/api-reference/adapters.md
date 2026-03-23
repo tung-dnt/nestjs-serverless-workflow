@@ -120,7 +120,7 @@ You can create adapters for other runtimes by using the `OrchestratorService` di
 ```typescript
 import { Controller, Post, Body } from '@nestjs/common';
 import { OrchestratorService } from 'nestjs-serverless-workflow/core';
-import { IWorkflowEvent } from 'nestjs-serverless-workflow/event-bus';
+import type { IWorkflowEvent } from 'nestjs-serverless-workflow/core';
 
 @Controller('workflow')
 export class WorkflowController {
@@ -145,7 +145,7 @@ export const handler: EventBridgeHandler<string, any, void> = async (event) => {
   const orchestrator = app.get(OrchestratorService);
 
   const workflowEvent = {
-    topic: event['detail-type'],
+    event: event['detail-type'],
     urn: event.detail.entityId,
     payload: event.detail,
     attempt: 0,
@@ -155,9 +155,54 @@ export const handler: EventBridgeHandler<string, any, void> = async (event) => {
 };
 ```
 
+## DurableLambdaEventHandler
+
+Factory function that creates a durable Lambda handler for long-running workflows with checkpoint/replay.
+
+### Import
+
+```typescript
+import { DurableLambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+```
+
+### Signature
+
+```typescript
+DurableLambdaEventHandler(
+  app: INestApplicationContext,
+  withDurableExecution: WithDurableExecution,
+): (event: DurableWorkflowEvent, ctx: IDurableContext) => Promise<DurableWorkflowResult>
+```
+
+### Parameters
+
+- `app`: NestJS application context containing the workflow module
+- `withDurableExecution`: The `withDurableExecution` function from `@aws/durable-execution-sdk-js`
+
+### Example
+
+```typescript
+import { NestFactory } from '@nestjs/core';
+import { DurableLambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+import { withDurableExecution } from '@aws/durable-execution-sdk-js';
+import { AppModule } from './app.module';
+
+const app = await NestFactory.createApplicationContext(AppModule);
+export const handler = DurableLambdaEventHandler(app, withDurableExecution);
+```
+
+### Features
+
+- **Checkpoint/Replay**: Steps are checkpointed at event boundaries — on replay, completed steps return stored results
+- **Idle State Callbacks**: Pauses via `waitForCallback()` when workflow reaches an idle state
+- **Retry with Backoff**: Respects `@WithRetry()` configuration with durable waits between attempts
+- **Configurable Timeout**: `idle` and `no_transition` states support a `timeout` field (default: 24 hours)
+
+See [Adapters concept guide](../concepts/adapters) for detailed usage.
+
 ## Related
 
-- [Lambda Adapter Guide](../adapters)
+- [Adapters Guide](../concepts/adapters)
 - [OrchestratorService](./services#orchestratorservice)
 - [IWorkflowEvent](./interfaces#iworkflowevent)
 

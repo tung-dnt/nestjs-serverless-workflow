@@ -138,7 +138,7 @@ Interface for workflow events.
 
 ```typescript
 interface IWorkflowEvent<T = any> {
-  topic: string;        // Event topic/name
+  event: string;        // Event name that triggers a transition
   urn: string | number; // Unique resource name (entity identifier)
   payload?: T | object | string; // Optional event data
   attempt: number;      // Retry attempt number
@@ -147,7 +147,7 @@ interface IWorkflowEvent<T = any> {
 
 ### Properties
 
-- `topic`: Event topic/name (e.g., 'order.submit')
+- `event`: Event name that triggers a transition (e.g., 'order.submit')
 - `urn`: Unique resource name identifying the entity
 - `payload?`: Optional event payload data
 - `attempt`: Current retry attempt number (starts at 0)
@@ -156,7 +156,7 @@ interface IWorkflowEvent<T = any> {
 
 ```typescript
 const event: IWorkflowEvent = {
-  topic: 'order.submit',
+  event: 'order.submit',
   urn: 'order-12345',
   payload: {
     items: ['item1', 'item2'],

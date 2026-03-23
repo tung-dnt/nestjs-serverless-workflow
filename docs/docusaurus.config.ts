@@ -90,20 +90,20 @@ const config: Config = {
           title: 'Documentation',
           items: [
             {
-              label: 'Getting Started',
-              to: '/docs/getting-started',
+              label: 'Quick Start',
+              to: '/docs/quick-start',
             },
             {
-              label: 'Workflow Module',
-              to: '/docs/workflow',
+              label: 'Workflow',
+              to: '/docs/concepts/workflow',
             },
             {
-              label: 'Event Bus',
-              to: '/docs/event-bus',
+              label: 'TransitResult',
+              to: '/docs/concepts/transit-result',
             },
             {
               label: 'Adapters',
-              to: '/docs/adapters',
+              to: '/docs/concepts/adapters',
             },
           ],
         },

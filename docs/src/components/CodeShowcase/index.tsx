@@ -10,18 +10,19 @@ const definitionTabs = [
     code: `import { Workflow, OnEvent, Entity, Payload } from 'nestjs-serverless-workflow/core';
 
 @Workflow({
-  name: 'order',
+  name: 'OrderWorkflow',
   states: {
     finals: ['delivered', 'cancelled'],
-    idles: ['pending_payment', 'processing'],
-    failed: ['cancelled'],
+    idles: ['pending_payment'],
+    failed: 'cancelled',
   },
   transitions: [
-    { from: 'pending_payment', to: 'processing', event: 'PAYMENT_RECEIVED' },
-    { from: 'processing', to: 'shipped', event: 'SHIP_ORDER' },
-    { from: 'shipped', to: 'delivered', event: 'CONFIRM_DELIVERY' },
-    { from: '*', to: 'cancelled', event: 'CANCEL', condition: 'canCancel' },
+    { event: 'PAYMENT_RECEIVED', from: ['pending_payment'], to: 'processing' },
+    { event: 'SHIP_ORDER', from: ['processing'], to: 'shipped' },
+    { event: 'CONFIRM_DELIVERY', from: ['shipped'], to: 'delivered' },
+    { event: 'CANCEL', from: ['pending_payment', 'processing'], to: 'cancelled' },
   ],
+  entityService: 'entity.order',
 })
 export class OrderWorkflow {
   @OnEvent('PAYMENT_RECEIVED')
@@ -32,30 +33,30 @@ export class OrderWorkflow {
 }`,
   },
   {
-    label: 'Entity',
-    code: `import { IWorkflowEntity } from 'nestjs-serverless-workflow/core';
+    label: 'Entity Service',
+    code: `import { Injectable } from '@nestjs/common';
+import { IWorkflowEntity } from 'nestjs-serverless-workflow/core';
 
-export class Order implements IWorkflowEntity<Order, OrderState> {
-  id: string;
-  status: OrderState;
-  paidAt?: Date;
-  shippedAt?: Date;
+@Injectable()
+export class OrderEntityService
+  implements IWorkflowEntity<Order, OrderState> {
 
-  getState(): OrderState {
-    return this.status;
+  async create() {
+    return { id: uuid(), status: 'pending_payment' };
   }
 
-  setState(state: OrderState): void {
-    this.status = state;
+  async load(urn: string) {
+    return this.repo.findOne(urn);
   }
-}
 
-type OrderState =
-  | 'pending_payment'
-  | 'processing'
-  | 'shipped'
-  | 'delivered'
-  | 'cancelled';`,
+  async update(order: Order, status: OrderState) {
+    order.status = status;
+    return this.repo.save(order);
+  }
+
+  status(order: Order) { return order.status; }
+  urn(order: Order) { return order.id; }
+}`,
   },
 ];
 
@@ -66,16 +67,14 @@ const usageTabs = [
 
 @Injectable()
 export class OrderService {
-  constructor(
-    private readonly orchestrator: OrchestratorService,
-  ) {}
+  constructor(private orchestrator: OrchestratorService) {}
 
   async processPayment(orderId: string, payload: PaymentDto) {
     const result = await this.orchestrator.transit({
-      workflow: 'order',
-      entityId: orderId,
       event: 'PAYMENT_RECEIVED',
+      urn: orderId,
       payload,
+      attempt: 0,
     });
 
     // result.status: 'final' | 'idle' | 'continued' | 'no_transition'
@@ -85,20 +84,17 @@ export class OrderService {
   },
   {
     label: 'Lambda',
-    code: `import { DurableLambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+    code: `import { NestFactory } from '@nestjs/core';
+import { DurableLambdaEventHandler } from 'nestjs-serverless-workflow/adapter';
+import { withDurableExecution } from '@aws/durable-execution-sdk-js';
+import { AppModule } from './app.module';
 
 const app = await NestFactory.createApplicationContext(AppModule);
 
-export const handler = DurableLambdaEventHandler(app, {
-  workflow: 'order',
-  // Automatic checkpoint & replay on timeout
-  // Batch item failure reporting for SQS
-  // Graceful shutdown handling
-});
-
-// Deploy with SQS event source mapping
-// Each message triggers a workflow transition
-// Failed items are automatically retried`,
+export const handler = DurableLambdaEventHandler(app, withDurableExecution);
+// Automatic checkpoint & replay across Lambda invocations
+// Idle states pause via waitForCallback()
+// Final states end the durable execution`,
   },
 ];
 

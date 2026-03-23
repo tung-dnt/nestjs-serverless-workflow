@@ -25,7 +25,7 @@ const FeatureList: FeatureItem[] = [
     ),
     description:
       'Define workflows with states, transitions, and events. Built-in support for final states, idle states, and failure handling.',
-    link: '/docs/workflow',
+    link: '/docs/concepts/workflow',
   },
   {
     title: 'Serverless Optimized',
@@ -36,7 +36,7 @@ const FeatureList: FeatureItem[] = [
     ),
     description:
       'Built for AWS Lambda with automatic timeout handling, batch processing, and graceful shutdown. Minimal cold start overhead.',
-    link: '/docs/adapters',
+    link: '/docs/concepts/adapters',
   },
   {
     title: 'Durable Execution',
@@ -47,7 +47,7 @@ const FeatureList: FeatureItem[] = [
     ),
     description:
       'Checkpoint and replay execution with the Durable Lambda Adapter. Survive timeouts and resume exactly where you left off.',
-    link: '/docs/event-bus',
+    link: '/docs/concepts/transit-result',
   },
   {
     title: 'Fully Type-Safe',
@@ -59,7 +59,7 @@ const FeatureList: FeatureItem[] = [
     ),
     description:
       'Full TypeScript support with comprehensive type definitions. Catch workflow configuration errors at compile time, not runtime.',
-    link: '/docs/workflow',
+    link: '/docs/concepts/workflow',
   },
   {
     title: 'Tree-Shakable',
@@ -71,7 +71,7 @@ const FeatureList: FeatureItem[] = [
     ),
     description:
       'Subpath exports ensure minimal bundle sizes. Import only what you need for faster cold starts in serverless environments.',
-    link: '/docs/getting-started',
+    link: '/docs/quick-start',
   },
   {
     title: 'Retry & Error Handling',

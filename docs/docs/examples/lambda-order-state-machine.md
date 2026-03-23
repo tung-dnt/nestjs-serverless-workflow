@@ -374,8 +374,8 @@ This will delete:
 
 ## Related Documentation
 
-- [Getting Started](../getting-started)
-- [Workflow Module](../workflow)
-- [Event Bus](../event-bus)
-- [Lambda Adapter](../adapters)
+- [Quick Start](../quick-start)
+- [Workflow](../concepts/workflow)
+- [TransitResult](../concepts/transit-result)
+- [Adapters](../concepts/adapters)
 

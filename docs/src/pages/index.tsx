@@ -59,7 +59,7 @@ function HomepageHeader() {
           </svg>
         </div>
         <div className={styles.buttons}>
-          <Link className={styles.primaryBtn} to="/docs/getting-started">
+          <Link className={styles.primaryBtn} to="/docs/quick-start">
             Get Started
           </Link>
           <Link

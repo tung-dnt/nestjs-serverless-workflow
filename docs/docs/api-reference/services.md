@@ -21,20 +21,20 @@ Processes a workflow event and executes the appropriate state transition.
 ##### Signature
 
 ```typescript
-async transit(params: IWorkflowEvent): Promise<void>
+async transit(params: IWorkflowEvent): Promise<TransitResult>
 ```
 
 ##### Parameters
 
 - `params`: Workflow event object:
-  - `topic`: Event topic/name
+  - `event`: Event name that triggers a transition
   - `urn`: Unique resource name (entity identifier)
   - `payload?`: Optional event payload
   - `attempt`: Retry attempt number
 
 ##### Returns
 
-Promise that resolves when the transition is complete.
+Promise resolving to a `TransitResult` indicating the workflow outcome (`final`, `idle`, `continued`, or `no_transition`). See [TransitResult](../concepts/transit-result) for details.
 
 ##### Example
 
@@ -45,7 +45,7 @@ export class OrderService {
 
   async processOrderEvent(orderId: string, event: string, data: any) {
     await this.orchestrator.transit({
-      topic: event,
+      event: event,
       urn: orderId,
       payload: data,
       attempt: 0,
@@ -128,7 +128,7 @@ Saga support is planned for future releases. See the workflow definition interfa
 ```typescript
 import { Module, Injectable } from '@nestjs/common';
 import { WorkflowModule, OrchestratorService } from 'nestjs-serverless-workflow/core';
-import { IWorkflowEvent } from 'nestjs-serverless-workflow/event-bus';
+import type { IWorkflowEvent } from 'nestjs-serverless-workflow/core';
 
 @Injectable()
 export class WorkflowProcessor {
