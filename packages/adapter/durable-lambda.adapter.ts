@@ -1,6 +1,7 @@
 import type { INestApplicationContext } from '@nestjs/common';
 import { OrchestratorService, RetryBackoff, type IWorkflowEvent, type TransitResult } from '@/core';
 import { UnretriableException } from '@/exception/unretriable.exception';
+import { BaseWorkflowAdapter } from './base-workflow.adapter';
 
 export interface DurableWorkflowEvent {
   urn: string | number;
@@ -54,6 +55,127 @@ function parseCallbackResult<T>(raw: unknown): T {
 }
 
 /**
+ * Concrete adapter that wraps the workflow orchestrator in an AWS durable execution.
+ *
+ * Each workflow instance runs as a single durable execution spanning multiple Lambda invocations.
+ * Steps are checkpointed at event boundaries — on replay, completed steps return stored results.
+ */
+class DurableLambdaWorkflowAdapter extends BaseWorkflowAdapter<IDurableContext, DurableWorkflowResult> {
+  private urn!: string | number;
+
+  constructor(orchestrator: OrchestratorService) {
+    super(orchestrator);
+  }
+
+  async run(event: DurableWorkflowEvent, ctx: IDurableContext): Promise<DurableWorkflowResult> {
+    this.urn = event.urn;
+    const initialEvent: IWorkflowEvent = {
+      event: event.initialEvent,
+      urn: event.urn,
+      payload: event.payload,
+      attempt: 0,
+    };
+    return this.runWorkflowLoop(initialEvent, ctx);
+  }
+
+  protected async executeTransit(
+    currentEvent: IWorkflowEvent,
+    iteration: number,
+    ctx: IDurableContext,
+  ): Promise<TransitResult> {
+    const retryConfig = this.orchestrator.getRetryConfig(currentEvent.event);
+    const maxAttempts = retryConfig?.maxAttempts ?? 1;
+
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await ctx.step(`transit:${currentEvent.event}:${iteration}:${attempt}`, () =>
+          this.orchestrator.transit(currentEvent),
+        );
+      } catch (e) {
+        if (e instanceof UnretriableException) throw e;
+        lastError = e as Error;
+
+        if (attempt < maxAttempts - 1) {
+          const delay = RetryBackoff.calculateDelay(attempt, retryConfig!);
+          ctx.logger.info(
+            `Handler ${currentEvent.event} failed (attempt ${attempt + 1}/${maxAttempts}), retrying in ${delay}ms`,
+          );
+          await ctx.wait({ seconds: Math.ceil(delay / 1000) });
+        }
+      }
+    }
+
+    throw lastError!;
+  }
+
+  protected onFinal(
+    result: Extract<TransitResult, { status: 'final' }>,
+    _event: IWorkflowEvent,
+    _ctx: IDurableContext,
+  ): DurableWorkflowResult {
+    return { urn: this.urn, status: 'completed', state: result.state };
+  }
+
+  protected async onIdle(
+    result: Extract<TransitResult, { status: 'idle' }>,
+    _event: IWorkflowEvent,
+    iteration: number,
+    ctx: IDurableContext,
+  ): Promise<IWorkflowEvent> {
+    const timeout = result.timeout ?? DEFAULT_CALLBACK_TIMEOUT;
+    const raw = await ctx.waitForCallback<string>(
+      `idle:${result.state}:${iteration}`,
+      async (callbackId: string) => {
+        ctx.logger.info(`Waiting for callback at idle state ${result.state}`, { callbackId });
+      },
+      { timeout },
+    );
+    const callbackPayload = parseCallbackResult<{ event: string; payload?: any }>(raw);
+    return {
+      event: callbackPayload.event,
+      urn: this.urn,
+      payload: callbackPayload.payload,
+      attempt: 0,
+    };
+  }
+
+  protected async onContinued(
+    result: Extract<TransitResult, { status: 'continued' }>,
+    iteration: number,
+    ctx: IDurableContext,
+  ): Promise<IWorkflowEvent> {
+    // Checkpoint the progression — on replay, returns stored result
+    await ctx.step(`${result.nextEvent.event}:${iteration}`, async () => result.nextEvent);
+    return result.nextEvent;
+  }
+
+  protected async onNoTransition(
+    result: Extract<TransitResult, { status: 'no_transition' }>,
+    _event: IWorkflowEvent,
+    iteration: number,
+    ctx: IDurableContext,
+  ): Promise<IWorkflowEvent> {
+    const timeout = result.timeout ?? DEFAULT_CALLBACK_TIMEOUT;
+    const raw = await ctx.waitForCallback<string>(
+      `awaiting:${result.state}:${iteration}`,
+      async (callbackId: string) => {
+        ctx.logger.info(`No auto-transition from ${result.state}, waiting for explicit event`, { callbackId });
+      },
+      { timeout },
+    );
+    const noTransitionPayload = parseCallbackResult<{ event: string; payload?: any }>(raw);
+    return {
+      event: noTransitionPayload.event,
+      urn: this.urn,
+      payload: noTransitionPayload.payload,
+      attempt: 0,
+    };
+  }
+}
+
+/**
  * Creates a Lambda handler that wraps the workflow orchestrator in a durable execution.
  *
  * Each workflow instance runs as a single durable execution spanning multiple Lambda invocations.
@@ -67,112 +189,9 @@ function parseCallbackResult<T>(raw: unknown): T {
  */
 export const DurableLambdaEventHandler = (app: INestApplicationContext, withDurableExecution: WithDurableExecution) => {
   const orchestrator = app.get(OrchestratorService);
+  const adapter = new DurableLambdaWorkflowAdapter(orchestrator);
 
   return withDurableExecution(async (event: DurableWorkflowEvent, ctx: IDurableContext) => {
-    let currentEvent: IWorkflowEvent = {
-      event: event.initialEvent,
-      urn: event.urn,
-      payload: event.payload,
-      attempt: 0,
-    };
-
-    let iteration = 0;
-
-    while (true) {
-      const result = await transitWithRetry(orchestrator, currentEvent, iteration, ctx);
-
-      switch (result.status) {
-        case 'final':
-          return { urn: event.urn, status: 'completed', state: result.state } satisfies DurableWorkflowResult;
-
-        case 'idle': {
-          const timeout = result.timeout ?? DEFAULT_CALLBACK_TIMEOUT;
-          const raw = await ctx.waitForCallback<string>(
-            `idle:${result.state}:${iteration}`,
-            async (callbackId: string) => {
-              // External systems use this callbackId to resume the workflow
-              // via SendDurableExecutionCallbackSuccess Lambda API
-              ctx.logger.info(`Waiting for callback at idle state ${result.state}`, { callbackId });
-            },
-            { timeout },
-          );
-          const callbackPayload = parseCallbackResult<{ event: string; payload?: any }>(raw);
-
-          currentEvent = {
-            event: callbackPayload.event,
-            urn: event.urn,
-            payload: callbackPayload.payload,
-            attempt: 0,
-          };
-          break;
-        }
-
-        case 'continued': {
-          // Checkpoint the progression — on replay, returns stored result
-          await ctx.step(`${result.nextEvent.event}:${iteration}`, async () => result.nextEvent);
-          currentEvent = result.nextEvent;
-          break;
-        }
-
-        case 'no_transition': {
-          const timeout = result.timeout ?? DEFAULT_CALLBACK_TIMEOUT;
-          // No unambiguous auto-transition — wait for explicit event via callback
-          const raw = await ctx.waitForCallback<string>(
-            `awaiting:${result.state}:${iteration}`,
-            async (callbackId: string) => {
-              ctx.logger.info(`No auto-transition from ${result.state}, waiting for explicit event`, { callbackId });
-            },
-            { timeout },
-          );
-          const noTransitionPayload = parseCallbackResult<{ event: string; payload?: any }>(raw);
-          currentEvent = {
-            event: noTransitionPayload.event,
-            urn: event.urn,
-            payload: noTransitionPayload.payload,
-            attempt: 0,
-          };
-          break;
-        }
-      }
-
-      iteration++;
-    }
+    return adapter.run(event, ctx);
   });
 };
-
-/**
- * Wraps `orchestrator.transit()` with retry logic when the handler has `@WithRetry()` config.
- * Each attempt is checkpointed via `ctx.step()` so replays skip completed attempts.
- */
-async function transitWithRetry(
-  orchestrator: OrchestratorService,
-  currentEvent: IWorkflowEvent,
-  iteration: number,
-  ctx: IDurableContext,
-): Promise<TransitResult> {
-  const retryConfig = orchestrator.getRetryConfig(currentEvent.event);
-  const maxAttempts = retryConfig?.maxAttempts ?? 1;
-
-  let lastError: Error | undefined;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      return await ctx.step(`transit:${currentEvent.event}:${iteration}:${attempt}`, () =>
-        orchestrator.transit(currentEvent),
-      );
-    } catch (e) {
-      if (e instanceof UnretriableException) throw e;
-      lastError = e as Error;
-
-      if (attempt < maxAttempts - 1) {
-        const delay = RetryBackoff.calculateDelay(attempt, retryConfig!);
-        ctx.logger.info(
-          `Handler ${currentEvent.event} failed (attempt ${attempt + 1}/${maxAttempts}), retrying in ${delay}ms`,
-        );
-        await ctx.wait({ seconds: Math.ceil(delay / 1000) });
-      }
-    }
-  }
-
-  throw lastError!;
-}

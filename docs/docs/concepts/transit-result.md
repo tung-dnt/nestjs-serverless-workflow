@@ -76,6 +76,29 @@ Adapters are the glue between your infrastructure and the orchestrator. They cal
 - **`no_transition`** — pause and wait for an explicit event
 - **`final`** — return the completed result
 
-The built-in [DurableLambdaEventHandler](./adapters) implements this pattern with AWS Lambda's durable execution SDK, including checkpointing and `waitForCallback()` support.
+### BaseWorkflowAdapter
+
+The library provides `BaseWorkflowAdapter`, an abstract class that encapsulates this loop and dispatches each `TransitResult` variant to a dedicated handler method:
+
+```typescript
+import { BaseWorkflowAdapter } from 'nestjs-serverless-workflow/adapter';
+
+// TContext = your runtime context (e.g. IDurableContext, Express Request)
+// TResult  = the value your adapter returns when the workflow completes
+abstract class BaseWorkflowAdapter<TContext, TResult> {
+  protected runWorkflowLoop(initialEvent, ctx): Promise<TResult>;
+
+  // Override these in your concrete adapter:
+  protected abstract executeTransit(event, iteration, ctx): Promise<TransitResult>;
+  protected abstract onFinal(result, event, ctx): TResult;
+  protected abstract onIdle(result, event, iteration, ctx): Promise<IWorkflowEvent>;
+  protected abstract onContinued(result, iteration, ctx): Promise<IWorkflowEvent>;
+  protected abstract onNoTransition(result, event, iteration, ctx): Promise<IWorkflowEvent>;
+}
+```
+
+Each handler method receives a **narrowed** result type (e.g. `Extract<TransitResult, { status: 'idle' }>`) so you get full type safety without manual switch statements.
+
+The built-in [DurableLambdaEventHandler](./adapters) extends `BaseWorkflowAdapter` with AWS Lambda's durable execution SDK, including checkpointing and `waitForCallback()` support.
 
 For writing your own adapter, see [Custom Adapter](../recipes/custom-adapter).
