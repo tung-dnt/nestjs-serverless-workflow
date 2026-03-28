@@ -3,6 +3,7 @@ import { DiscoveryModule } from '@nestjs/core';
 import { OrchestratorService, StateRouterHelperFactory } from '@/core';
 
 import type { IWorkflowEntity } from './types';
+import { type PayloadValidator, WORKFLOW_PAYLOAD_VALIDATOR } from './types';
 
 /**
  * Dynamic NestJS module that bootstraps the workflow engine.
@@ -39,13 +40,16 @@ export class WorkflowModule {
     entities: Provider<IWorkflowEntity>[];
     workflows: Provider[];
     providers?: Provider[];
+    /** Optional validation function for `@Payload(schema)` decorated parameters. */
+    payloadValidator?: PayloadValidator;
   }): DynamicModule {
-    const { imports, entities, workflows, providers: extraProviders } = options;
+    const { imports, entities, workflows, providers: extraProviders, payloadValidator } = options;
 
     const providers = [
       ...entities,
       ...workflows,
       ...(extraProviders ?? []),
+      { provide: WORKFLOW_PAYLOAD_VALIDATOR, useValue: payloadValidator ?? null },
       StateRouterHelperFactory,
       OrchestratorService,
     ];

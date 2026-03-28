@@ -1,5 +1,5 @@
 import { BadRequestException, type Logger } from '@nestjs/common';
-import type { Duration, ITransitionEvent, IWorkflowDefinition, IWorkflowEntity } from '../types';
+import type { Duration, ITransitionEvent, IWorkflowDefinition, IWorkflowEntity, PayloadValidator } from '../types';
 
 /**
  * Transition-matching and entity-validation logic for a single workflow event.
@@ -19,6 +19,7 @@ export class RouterService<T, Event, State> {
     private readonly entityService: IWorkflowEntity,
     private readonly workflowDefinition: IWorkflowDefinition<T, Event, State>,
     private readonly logger: Logger,
+    private readonly payloadValidator: PayloadValidator | null,
   ) {}
 
   /** Load the entity by URN and verify it exists. Warns if already in a final state. */
@@ -128,7 +129,7 @@ export class RouterService<T, Event, State> {
       // populate args according to metadata indices
       for (const meta of paramsMeta) {
         if (meta.type === 'entity') args[meta.index] = entity;
-        else if (meta.type === 'payload') args[meta.index] = payload;
+        else if (meta.type === 'payload') args[meta.index] = this.validatePayload(meta.dto, payload);
         else args[meta.index] = undefined;
       }
     } else {
@@ -136,5 +137,17 @@ export class RouterService<T, Event, State> {
       args = [{ entity, payload }];
     }
     return args;
+  }
+
+  /** Validate and optionally transform the payload using the user-supplied validator. */
+  private validatePayload(dto: unknown, payload: unknown): unknown {
+    if (!dto || !this.payloadValidator) return payload;
+    try {
+      return this.payloadValidator(dto, payload);
+    } catch (error) {
+      throw new BadRequestException(
+        `Payload validation failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 }
